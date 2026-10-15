@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pen Fight 3D — Authentic Rigid-Body Tabletop Arena</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0" />
+    <!-- Three.js & Cannon.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"Roboto Mono"', 'monospace'],
+                    },
+                    colors: {
+                        md: {
+                            bg: '#FEF7FF',
+                            surface: '#F3EDF7',
+                            surfaceHigh: '#ECE6F0',
+                            surfaceHighest: '#E6E0E9',
+                            primary: '#6750A4',
+                            onPrimary: '#FFFFFF',
+                            primaryContainer: '#EADDFF',
+                            onPrimaryContainer: '#21005D',
+                            secondary: '#625B71',
+                            secondaryContainer: '#E8DEF8',
+                            tertiary: '#7D5260',
+                            tertiaryContainer: '#FFD8E4',
+                            outline: '#79747E',
+                            outlineVariant: '#CAC4D0',
+                            error: '#B3261E'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #E6E0E9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            touch-action: none;
+        }
+        .md3-card {
+            background: rgba(243, 237, 247, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(202, 196, 208, 0.65);
+            box-shadow: 0 4px 20px -2px rgba(33, 0, 93, 0.08), 0 2px 6px -1px rgba(33, 0, 93, 0.04);
+        }
+        .md3-card-elevated {
+            background: rgba(254, 247, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(202, 196, 208, 0.85);
+            box-shadow: 0 12px 32px -4px rgba(33, 0, 93, 0.15), 0 4px 12px -2px rgba(33, 0, 93, 0.08);
+        }
+        .md3-fab {
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            box-shadow: 0 4px 12px rgba(103, 80, 164, 0.25);
+        }
+        .md3-fab:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(103, 80, 164, 0.35);
+        }
+        .md3-fab:active {
+            transform: translateY(0) scale(0.96);
+        }
+        .md3-chip {
+            transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CAC4D0;
+            border-radius: 9999px;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.92); opacity: 0.85; }
+            50% { transform: scale(1.08); opacity: 0.4; }
+            100% { transform: scale(0.92); opacity: 0.85; }
+        }
+        .turn-glow {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-[#1D1B20]">
+
+    <!-- 3D Arena Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Top App Bar / Material Design 3 HUD -->
+    <header class="fixed top-0 left-0 right-0 z-20 p-2.5 sm:p-4 pointer-events-none flex flex-col gap-2">
+        <div class="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- Brand & Mode Pill -->
+            <div class="md3-card rounded-full px-3.5 py-2 flex items-center gap-3 pointer-events-auto">
+                <div class="w-9 h-9 rounded-full bg-md-primary text-white flex items-center justify-center shadow-sm">
+                    <span class="material-symbols-rounded text-xl">stylus_note</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-sm sm:text-base tracking-tight text-[#1D1B20]">Pen Fight 3D</h1>
+                        <span id="mode-badge" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-md-primaryContainer text-md-onPrimaryContainer">1P vs AI</span>
+                    </div>
+                    <p class="text-[11px] text-md-secondary hidden md:block">Rigid-Body Contact Solver • Dry Coulomb Friction</p>
+                </div>
+            </div>
+
+            <!-- Dual Player Score & Edge Stability Banner -->
+            <div class="md3-card-elevated rounded-full px-3 sm:px-5 py-1.5 flex items-center gap-2.5 sm:gap-5 pointer-events-auto">
+                <!-- Player 1 -->
+                <div id="p1-hud" class="flex items-center gap-2.5 py-1 px-2.5 rounded-full transition-all">
+                    <div class="w-3.5 h-3.5 rounded-full bg-blue-600 ring-4 ring-blue-200"></div>
+                    <div class="text-left">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-extrabold text-[#1D1B20]" id="p1-pen-label">Parker</span>
+                            <span class="text-[9px] font-mono font-bold bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded-full" id="p1-mass-badge">4.6g</span>
+                            <span class="text-[9px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded-full" id="p1-grip-badge">80% GRIP</span>
+                            <span class="text-[11px] font-mono bg-blue-600 text-white px-1.5 rounded font-bold" id="p1-score">0</span>
+                        </div>
+                        <div class="w-24 sm:w-28 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1" title="Desk Edge Stability">
+                            <div id="p1-stability-bar" class="h-full bg-blue-600 transition-all duration-200" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-[11px] font-extrabold text-md-outline uppercase tracking-widest">VS</div>
+
+                <!-- Player 2 -->
+                <div id="p2-hud" class="flex items-center gap-2.5 py-1 px-2.5 rounded-full transition-all">
+                    <div class="text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <span class="text-[11px] font-mono bg-rose-600 text-white px-1.5 rounded font-bold" id="p2-score">0</span>
+                            <span class="text-[9px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded-full" id="p2-grip-badge">74% GRIP</span>
+                            <span class="text-[9px] font-mono font-bold bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded-full" id="p2-mass-badge">5.0g</span>
+                            <span class="text-xs font-extrabold text-[#1D1B20]" id="p2-pen-label">VRT Mod</span>
+                        </div>
+                        <div class="w-24 sm:w-28 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1 ml-auto" title="Desk Edge Stability">
+                            <div id="p2-stability-bar" class="h-full bg-rose-600 transition-all duration-200" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="w-3.5 h-3.5 rounded-full bg-rose-600 ring-4 ring-rose-200"></div>
+                </div>
+            </div>
+
+            <!-- Top Right Controls -->
+            <div class="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                <button id="btn-open-loadout" class="md3-card hover:bg-md-primaryContainer/70 text-[#1D1B20] rounded-full px-3.5 py-2 flex items-center gap-1.5 text-xs font-bold transition-all" title="Select Pens & Match Mode">
+                    <span class="material-symbols-rounded text-lg text-md-primary">tune</span>
+                    <span class="hidden lg:inline">Loadout & Mode</span>
+                </button>
+                <button id="btn-camera" class="md3-card hover:bg-md-primaryContainer/70 text-[#1D1B20] rounded-full p-2.5 flex items-center justify-center transition-all" title="Cycle Camera Angle">
+                    <span class="material-symbols-rounded text-lg text-md-primary">videocam</span>
+                </button>
+                <button id="btn-sound" class="md3-card hover:bg-md-primaryContainer/70 text-[#1D1B20] rounded-full p-2.5 flex items-center justify-center transition-all" title="Toggle Synthesized Audio">
+                    <span class="material-symbols-rounded text-lg text-md-primary" id="sound-icon">volume_up</span>
+                </button>
+                <button id="btn-reset" class="md3-card hover:bg-rose-100 text-[#1D1B20] rounded-full p-2.5 flex items-center justify-center transition-all" title="Reset Round">
+                    <span class="material-symbols-rounded text-lg text-rose-700">restart_alt</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Live Clash Telemetry Toast (Impact Type, Skid Distance, Grip Reduction) -->
+    <div id="impact-toast" class="fixed top-20 sm:top-24 left-1/2 -translate-x-1/2 z-30 pointer-events-none opacity-0 transition-all duration-200 transform -translate-y-2">
+        <div class="md3-card-elevated rounded-2xl px-4 py-2.5 border-2 border-amber-500/80 shadow-xl flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                <span class="material-symbols-rounded text-xl" id="impact-toast-icon">bolt</span>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="impact-toast-type" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">CENTER T-BONE RAM</span>
+                    <span id="impact-toast-skid" class="text-xs font-mono font-extrabold text-[#1D1B20]">14.2 cm Skid</span>
+                </div>
+                <div id="impact-toast-sub" class="text-[11px] font-semibold text-teal-800 mt-0.5">Grip Anchor (-36% Linear Knockback) • High Spin Pivot</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Overlay: Live Flick Telemetry & Turn Status -->
+    <div class="fixed bottom-4 left-0 right-0 z-20 px-4 pointer-events-none flex flex-col items-center gap-2.5">
+        
+        <!-- Live Strike Point Telemetry Pill (Visible while aiming) -->
+        <div id="aim-telemetry" class="hidden md3-card-elevated rounded-2xl px-4 py-2.5 flex items-center gap-4 text-xs border-l-4 border-l-md-primary transition-all shadow-lg">
+            <div>
+                <span class="text-[10px] uppercase tracking-wider text-md-secondary font-bold block">Strike Zone</span>
+                <span id="telemetry-point" class="font-extrabold text-md-primary">Nib Tip (Whip Slash)</span>
+            </div>
+            <div class="h-6 w-[1px] bg-md-outlineVariant"></div>
+            <div>
+                <span class="text-[10px] uppercase tracking-wider text-md-secondary font-bold block">Finger Power</span>
+                <span id="telemetry-power" class="font-mono font-extrabold text-[#1D1B20]">0%</span>
+            </div>
+            <div class="h-6 w-[1px] bg-md-outlineVariant"></div>
+            <div>
+                <span class="text-[10px] uppercase tracking-wider text-md-secondary font-bold block">Mechanics Split</span>
+                <span id="telemetry-ratio" class="font-mono font-bold text-amber-700">75% Whip / 25% Ram</span>
+            </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="max-w-4xl w-full flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
+            <div class="md3-card-elevated rounded-full px-4 py-2 flex items-center gap-3 shadow-md">
+                <span id="turn-indicator-dot" class="w-3 h-3 rounded-full bg-blue-600 turn-glow"></span>
+                <div>
+                    <div class="text-xs font-extrabold text-[#1D1B20]" id="status-headline">Player 1's Turn • Parker Vector Metallix</div>
+                    <div class="text-[11px] text-md-secondary" id="status-subline">Click & drag directly on your pen: Tip/Cap = Whip Spin, Center = Heavy Ram</div>
+                </div>
+            </div>
+
+            <!-- Camera Preset Chips -->
+            <div class="md3-card rounded-full p-1 flex items-center gap-1">
+                <button data-cam="perspective" class="cam-chip md3-chip px-3 py-1 rounded-full text-xs font-bold bg-md-primary text-white">3D Orbit</button>
+                <button data-cam="top" class="cam-chip md3-chip px-3 py-1 rounded-full text-xs font-bold text-md-secondary hover:bg-md-surfaceHigh">Top Desk</button>
+                <button data-cam="action" class="cam-chip md3-chip px-3 py-1 rounded-full text-xs font-bold text-md-secondary hover:bg-md-surfaceHigh">Action Cam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loadout & Roster Modal (Material Design 3 Dialog) -->
+    <div id="loadout-modal" class="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 transition-opacity">
+        <div class="md3-card-elevated rounded-[28px] max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-white/70">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-md-surface border-b border-md-outlineVariant/50 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-rounded text-2xl text-md-primary">swords</span>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-[#1D1B20]">Pen Loadout & Physics Archetypes</h2>
+                        <p class="text-xs text-md-secondary">Authentic Rigid-Body Line-Segment Impulse & Dry Coulomb Desk Friction</p>
+                    </div>
+                </div>
+
+                <!-- Mode Switcher -->
+                <div class="bg-md-surfaceHighest p-1 rounded-full flex items-center">
+                    <button id="mode-1p" class="px-4 py-1.5 rounded-full text-xs font-bold bg-md-primary text-white transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-sm">smart_toy</span> 1P vs Tactical AI
+                    </button>
+                    <button id="mode-2p" class="px-4 py-1.5 rounded-full text-xs font-bold text-md-secondary hover:text-[#1D1B20] transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-sm">group</span> 2P Pass & Play
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+                
+                <!-- Slot Selector -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button id="slot-p1" class="p-3.5 rounded-2xl border-2 border-blue-600 bg-blue-50/75 text-left transition-all flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 block">Player 1 (Blue Corner)</span>
+                            <span id="slot-p1-name" class="text-base font-extrabold text-[#1D1B20]">Parker Vector Metallix</span>
+                            <span id="slot-p1-trait" class="text-xs text-md-secondary block mt-0.5">4.6g Brushed Steel • 80% Grip Anchor</span>
+                        </div>
+                        <span id="slot-p1-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-600 text-white">Editing P1</span>
+                    </button>
+
+                    <button id="slot-p2" class="p-3.5 rounded-2xl border-2 border-md-outlineVariant bg-white/60 hover:bg-white text-left transition-all flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-rose-700 block" id="slot-p2-label">Player 2 / AI (Red Corner)</span>
+                            <span id="slot-p2-name" class="text-base font-extrabold text-[#1D1B20]">VRT Tournament Mod</span>
+                            <span id="slot-p2-trait" class="text-xs text-md-secondary block mt-0.5">5.0g Dual-Cap Spinner • High Moment of Inertia</span>
+                        </div>
+                        <span id="slot-p2-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-md-surfaceHighest text-md-secondary">Click to Edit P2</span>
+                    </button>
+                </div>
+
+                <!-- 6 Pen Cards Grid -->
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-md-secondary">Choose Pen Archetype (Physically Grounded 3.1g – 5.0g Scale)</h3>
+                        <span class="text-[11px] text-md-primary font-semibold">Click any pen to equip to active slot</span>
+                    </div>
+                    <div id="pen-roster-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 bg-md-surface border-t border-md-outlineVariant/50 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-xs text-md-secondary flex items-center gap-2">
+                    <span class="material-symbols-rounded text-base text-md-primary">verified</span>
+                    <span><strong>Real-Life Contact Physics:</strong> Hitting an opponent's <b>tip</b> whips them into a spin; hitting their <b>center barrel</b> drives them straight back across the wood grain!</span>
+                </div>
+                <button id="btn-start-match" class="md3-fab bg-md-primary hover:bg-[#563E91] text-white font-bold text-sm px-6 py-3 rounded-full flex items-center gap-2">
+                    <span class="material-symbols-rounded text-lg">play_arrow</span>
+                    <span>Start Desk Duel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Round Winner / Ring-Out Modal -->
+    <div id="ko-modal" class="fixed inset-0 z-30 pointer-events-none hidden items-center justify-center p-4">
+        <div class="md3-card-elevated pointer-events-auto rounded-[28px] p-6 max-w-md w-full text-center shadow-2xl border-2 border-md-primaryContainer">
+            <div class="w-14 h-14 rounded-2xl bg-md-primaryContainer text-md-primary mx-auto flex items-center justify-center mb-3">
+                <span class="material-symbols-rounded text-3xl">emoji_events</span>
+            </div>
+            <div class="text-xs font-extrabold uppercase tracking-widest text-md-primary" id="ko-subtitle">DESK RING-OUT!</div>
+            <h2 class="text-2xl font-extrabold text-[#1D1B20] mt-1" id="ko-title">Player 1 Wins Round!</h2>
+            <p class="text-xs text-md-secondary mt-1.5" id="ko-desc">Parker Vector knocked VRT Mod over the desk edge!</p>
+            
+            <div class="mt-5 flex items-center justify-center gap-3">
+                <button id="btn-change-pens-ko" class="px-4 py-2.5 rounded-full text-xs font-bold bg-md-surfaceHighest text-[#1D1B20] hover:bg-md-outlineVariant/60 transition-all flex items-center gap-1.5">
+                    <span class="material-symbols-rounded text-base">swap_horiz</span> Switch Pens
+                </button>
+                <button id="btn-rematch" class="md3-fab px-6 py-2.5 rounded-full text-xs font-bold bg-md-primary text-white flex items-center gap-1.5">
+                    <span class="material-symbols-rounded text-base">replay</span> Next Round
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /***********************************************************************
+         * 1. PHYSICALLY GROUNDED PEN ROSTER (3.1g to 5.0g Scale)
+         * Narrow, realistic mass ratios prevent 1/mass^2 rocket launches while
+         * preserving unmistakable weight, grip, spin inertia, and skid feel.
+         ***********************************************************************/
+        const PEN_ROSTER = {
+            vrt: {
+                id: 'vrt',
+                name: 'VRT Tournament Mod',
+                brand: 'VRT Custom',
+                tagline: 'Double-Capped Weighted Mod • High Rotational Inertia',
+                accentColor: '#E11D48',
+                bodyColor: '#1E293B',
+                capColor: '#F43F5E',
+                materialType: 'mod',
+                mass: 5.0,               // 5.0g heavy symmetric spinner
+                grip: 0.74,              // Dual rubberized tournament grips
+                length: 3.55,
+                radius: 0.145,
+                restitution: 0.62,
+                muSlide: 0.42,           // Dry Coulomb sliding friction coefficient
+                inertiaScale: 1.38,      // End-weighted momentum rings increase I
+                comOffset: 0.0,          // Perfectly balanced center of mass
+                idleStyle: 'gyro_rock',
+                idleDesc: 'Symmetric end-weighted gyroscopic oscillation',
+                stats: { weight: 98, grip: 74, spin: 96, ricochet: 78 }
+            },
+            parker: {
+                id: 'parker',
+                name: 'Parker Vector Metallix',
+                brand: 'Parker',
+                tagline: 'Brushed Stainless Steel • Heavy Linear Ram',
+                accentColor: '#D4AF37',
+                bodyColor: '#0F172A',
+                capColor: '#CBD5E1',
+                materialType: 'metal',
+                mass: 4.6,               // 4.6g solid stainless steel construction
+                grip: 0.80,              // Heavy metallic anchor + textured grip
+                length: 3.25,
+                radius: 0.14,
+                restitution: 0.68,       // Crisp metallic energy transfer
+                muSlide: 0.44,
+                inertiaScale: 1.12,
+                comOffset: 0.08,         // Slightly front-weighted steel section
+                idleStyle: 'heavy_shimmer',
+                idleDesc: 'Slow metallic poise with high-mass stability',
+                stats: { weight: 92, grip: 80, spin: 72, ricochet: 86 }
+            },
+            hauser: {
+                id: 'hauser',
+                name: 'Hauser XO',
+                brand: 'Hauser Germany',
+                tagline: 'Matte Rubberized Barrel • Maximum Knockback Resist',
+                accentColor: '#0284C7',
+                bodyColor: '#0F172A',
+                capColor: '#0369A1',
+                materialType: 'matte',
+                mass: 4.1,               // 4.1g solid tactical pen
+                grip: 0.88,              // Highest rubberized matte surface grip (88%)
+                length: 3.20,
+                radius: 0.145,
+                restitution: 0.60,
+                muSlide: 0.52,           // High rubberized table bite stops skids early
+                inertiaScale: 0.98,
+                comOffset: -0.05,
+                idleStyle: 'tactical_pulse',
+                idleDesc: 'High-grip matte lock with crisp alignment',
+                stats: { weight: 82, grip: 88, spin: 84, ricochet: 74 }
+            },
+            reynolds: {
+                id: 'reynolds',
+                name: 'Reynolds 045 Fine Carbure',
+                brand: 'Reynolds',
+                tagline: 'Classic Blue-Cap Legend • Balanced Cap Pivot',
+                accentColor: '#1D4ED8',
+                bodyColor: '#F8FAFC',
+                capColor: '#1E40AF',
+                materialType: 'classic_plastic',
+                mass: 3.5,               // 3.5g classroom all-rounder
+                grip: 0.62,              // Classic ribbed plastic grip zone
+                length: 3.15,
+                radius: 0.13,
+                restitution: 0.64,
+                muSlide: 0.38,
+                inertiaScale: 0.90,
+                comOffset: -0.11,        // Cap-heavy balance creates signature pivot whip
+                idleStyle: 'classic_pivot',
+                idleDesc: 'Nostalgic cap-weighted classroom pivot',
+                stats: { weight: 70, grip: 62, spin: 86, ricochet: 82 }
+            },
+            pentonic: {
+                id: 'pentonic',
+                name: 'Linc Pentonic',
+                brand: 'Pentonic',
+                tagline: 'Sleek Charcoal Monobody • High-Speed Whip Spin',
+                accentColor: '#9333EA',
+                bodyColor: '#18181B',
+                capColor: '#27272A',
+                materialType: 'matte_light',
+                mass: 3.3,               // 3.3g agile charcoal striker
+                grip: 0.52,              // Smooth low-drag finish
+                length: 3.20,
+                radius: 0.13,
+                restitution: 0.66,
+                muSlide: 0.34,           // Fast smooth desk glide
+                inertiaScale: 0.78,      // Low rotational inertia = blistering whip RPM
+                comOffset: 0.0,
+                idleStyle: 'micro_tremor',
+                idleDesc: 'Eager high-frequency micro-tremor ready to whip',
+                stats: { weight: 66, grip: 52, spin: 94, ricochet: 88 }
+            },
+            nataraj: {
+                id: 'nataraj',
+                name: 'Nataraj 621 Classic',
+                brand: 'Nataraj',
+                tagline: 'Hexagonal Crimson Striker • Snappy Facet Ricochet',
+                accentColor: '#DC2626',
+                bodyColor: '#DC2626',
+                capColor: '#111827',
+                materialType: 'hex_wood',
+                mass: 3.1,               // 3.1g grounded light striker (no rocket bug!)
+                grip: 0.40,              // Lacquered hexagonal facets slide cleanly
+                length: 3.30,
+                radius: 0.125,
+                restitution: 0.70,       // Snappy hexagonal edge clack
+                muSlide: 0.33,
+                inertiaScale: 0.75,
+                comOffset: 0.06,
+                idleStyle: 'hex_snap',
+                idleDesc: 'Crisp 60-degree hexagonal facet ticks on wood',
+                stats: { weight: 62, grip: 40, spin: 92, ricochet: 94 }
+            }
+        };
+
+        /***********************************************************************
+         * 2. SYNTHESIZED WEB AUDIO SOUND ENGINE
+         * Produces realistic plastic/metal clacks, dry wood skid friction,
+         * finger flick snaps, and ring-out thuds.
+         ***********************************************************************/
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playUI(freq = 520, duration = 0.05) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.22, now + duration);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+            playFlick(powerRatio = 0.5, whipRatio = 0.5) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                const f = 190 + powerRatio * 200 + whipRatio * 130;
+                osc.frequency.setValueAtTime(f, now);
+                osc.frequency.exponentialRampToValueAtTime(52, now + 0.095);
+                gain.gain.setValueAtTime(0.26 * Math.max(0.3, powerRatio), now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+            playClash(relSpeed = 6, isMetal = false) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const vol = Math.min(0.7, Math.max(0.12, relSpeed / 14));
+
+                // Dual-oscillator transient for authentic hard plastic/metal crack
+                const osc1 = this.ctx.createOscillator();
+                const osc2 = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc1.type = isMetal ? 'square' : 'triangle';
+                osc2.type = 'sine';
+
+                const f1 = isMetal ? 1580 : 960;
+                const f2 = isMetal ? 2840 : 1480;
+
+                osc1.frequency.setValueAtTime(f1 + Math.random() * 140, now);
+                osc1.frequency.exponentialRampToValueAtTime(210, now + 0.075);
+
+                osc2.frequency.setValueAtTime(f2 + Math.random() * 180, now);
+                osc2.frequency.exponentialRampToValueAtTime(380, now + 0.055);
+
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + (isMetal ? 0.095 : 0.07));
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.1);
+                osc2.stop(now + 0.1);
+            }
+            playRingOut() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [392, 523.25, 659.25, 783.99];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.065);
+                    gain.gain.setValueAtTime(0.16, now + idx * 0.065);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.32);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.065);
+                    osc.stop(now + idx * 0.065 + 0.33);
+                });
+            }
+        }
+        const sfx = new SoundEngine();
+
+        /***********************************************************************
+         * 3. ARENA DIMENSIONS & GAME STATE
+         ***********************************************************************/
+        const DESK_WIDTH = 14.5;
+        const DESK_DEPTH = 10.0;
+        const DESK_THICKNESS = 0.60;
+        const GRAVITY_TABLE = 9.81; // Standard m/s^2 for Coulomb friction calculation
+
+        const gameState = {
+            mode: '1p',
+            editingSlot: 1,
+            p1PenId: 'parker',
+            p2PenId: 'vrt',
+            p1Score: 0,
+            p2Score: 0,
+            turn: 1,
+            phase: 'AIMING', // 'AIMING', 'MOVING', 'AI_THINKING', 'ROUND_OVER'
+            cameraMode: 'perspective',
+            settleTimer: 0,
+            activeTime: 0,
+            hitstopTimer: 0  // 20ms micro-hitstop on heavy clashes for visceral impact feel
+        };
+
+        /***********************************************************************
+         * 4. THREE.JS SCENE & CANNON.JS 3D FALLING WORLD
+         * While pens are on the tabletop, our deterministic 12-substep Rigid-Body
+         * Line-Segment Solver handles exact 2D/3D rod collisions & Coulomb skid.
+         * Once a pen's center of mass crosses the desk edge, Cannon.js takes over
+         * for realistic 3D edge-teetering and tumbling to the floor.
+         ***********************************************************************/
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#E6E0E9');
+        scene.fog = new THREE.FogExp2('#E6E0E9', 0.018);
+
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 120);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Studio Illumination
+        const ambientLight = new THREE.AmbientLight(0xFFF8F6, 0.74);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xFFFFFF, 0.90);
+        dirLight.position.set(7, 16, 9);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 2;
+        dirLight.shadow.camera.far = 32;
+        const d = 10.5;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.bias = -0.0005;
+        scene.add(dirLight);
+
+        const rimLight = new THREE.DirectionalLight(0xEADDFF, 0.45);
+        rimLight.position.set(-9, 7, -9);
+        scene.add(rimLight);
+
+        // Cannon.js World (Used strictly for 3D edge-tumbling & falling off the desk)
+        const world = new CANNON.World();
+        world.gravity.set(0, -24, 0);
+        const deskCannonBody = new CANNON.Body({
+            mass: 0,
+            shape: new CANNON.Box(new CANNON.Vec3(DESK_WIDTH / 2, DESK_THICKNESS / 2, DESK_DEPTH / 2))
+        });
+        deskCannonBody.position.set(0, -DESK_THICKNESS / 2, 0);
+        world.addBody(deskCannonBody);
+
+        /***********************************************************************
+         * 5. PROCEDURAL WOODEN CLASSROOM DESK + DYNAMIC SKID MARK CANVAS
+         ***********************************************************************/
+        const deskCanvas = document.createElement('canvas');
+        deskCanvas.width = 1024;
+        deskCanvas.height = 1024;
+        const deskCtx = deskCanvas.getContext('2d');
+        let deskTexture = null;
+
+        function renderCleanDeskSurface() {
+            const grad = deskCtx.createLinearGradient(0, 0, 1024, 1024);
+            grad.addColorStop(0, '#F5EBE1');
+            grad.addColorStop(0.5, '#EDE0D1');
+            grad.addColorStop(1, '#E4D2BE');
+            deskCtx.fillStyle = grad;
+            deskCtx.fillRect(0, 0, 1024, 1024);
+
+            // Wood grain fibers
+            deskCtx.strokeStyle = 'rgba(155, 118, 84, 0.08)';
+            deskCtx.lineWidth = 2;
+            for (let i = 0; i < 240; i++) {
+                const y = (i / 240) * 1024;
+                deskCtx.beginPath();
+                deskCtx.moveTo(0, y);
+                deskCtx.bezierCurveTo(340, y + Math.sin(i) * 7, 680, y - Math.cos(i) * 7, 1024, y);
+                deskCtx.stroke();
+            }
+
+            // Minimalist Material Design Arena Markings
+            deskCtx.strokeStyle = 'rgba(103, 80, 164, 0.10)';
+            deskCtx.lineWidth = 2;
+            const step = 64;
+            for (let x = step; x < 1024; x += step) {
+                deskCtx.beginPath(); deskCtx.moveTo(x, 0); deskCtx.lineTo(x, 1024); deskCtx.stroke();
+            }
+            for (let y = step; y < 1024; y += step) {
+                deskCtx.beginPath(); deskCtx.moveTo(0, y); deskCtx.lineTo(1024, y); deskCtx.stroke();
+            }
+
+            // Center Clash Circle
+            deskCtx.strokeStyle = 'rgba(103, 80, 164, 0.22)';
+            deskCtx.lineWidth = 4;
+            deskCtx.beginPath();
+            deskCtx.arc(512, 512, 175, 0, Math.PI * 2);
+            deskCtx.stroke();
+
+            // Edge Warning Perimeter
+            deskCtx.save();
+            deskCtx.strokeStyle = 'rgba(179, 38, 30, 0.26)';
+            deskCtx.setLineDash([14, 10]);
+            deskCtx.lineWidth = 4;
+            deskCtx.strokeRect(44, 44, 1024 - 88, 1024 - 88);
+            deskCtx.restore();
+
+            if (deskTexture) deskTexture.needsUpdate = true;
+        }
+
+        // Draw subtle rubber/plastic skid mark onto the wood texture during high-G knockback
+        function stampDeskSkidMark(worldX, worldZ, vx, vz, grip) {
+            const u = (worldX / DESK_WIDTH + 0.5) * 1024;
+            const v = (worldZ / DESK_DEPTH + 0.5) * 1024;
+            if (u < 0 || u > 1024 || v < 0 || v > 1024) return;
+
+            deskCtx.save();
+            deskCtx.strokeStyle = `rgba(40, 35, 45, ${0.025 + grip * 0.04})`;
+            deskCtx.lineWidth = 4;
+            deskCtx.lineCap = 'round';
+            deskCtx.beginPath();
+            deskCtx.moveTo(u, v);
+            deskCtx.lineTo(u - vx * 1.1, v - vz * 1.1);
+            deskCtx.stroke();
+            deskCtx.restore();
+            deskTexture.needsUpdate = true;
+        }
+
+        renderCleanDeskSurface();
+        deskTexture = new THREE.CanvasTexture(deskCanvas);
+        deskTexture.anisotropy = 4;
+
+        const deskGeo = new THREE.BoxGeometry(DESK_WIDTH, DESK_THICKNESS, DESK_DEPTH);
+        const deskTopMat = new THREE.MeshStandardMaterial({
+            map: deskTexture,
+            roughness: 0.58,
+            metalness: 0.04
+        });
+        const deskSideMat = new THREE.MeshStandardMaterial({
+            color: 0xC6AF97,
+            roughness: 0.72
+        });
+        const deskMesh = new THREE.Mesh(deskGeo, [
+            deskSideMat, deskSideMat, deskTopMat, deskSideMat, deskSideMat, deskSideMat
+        ]);
+        deskMesh.position.set(0, -DESK_THICKNESS / 2, 0);
+        deskMesh.receiveShadow = true;
+        scene.add(deskMesh);
+
+        // Desk Tubular Steel Legs
+        const legGeo = new THREE.CylinderGeometry(0.24, 0.19, 8.5, 16);
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x49454F, roughness: 0.4, metalness: 0.65 });
+        [
+            [-DESK_WIDTH / 2 + 0.9, -4.25 - DESK_THICKNESS, -DESK_DEPTH / 2 + 0.9],
+            [DESK_WIDTH / 2 - 0.9, -4.25 - DESK_THICKNESS, -DESK_DEPTH / 2 + 0.9],
+            [-DESK_WIDTH / 2 + 0.9, -4.25 - DESK_THICKNESS, DESK_DEPTH / 2 - 0.9],
+            [DESK_WIDTH / 2 - 0.9, -4.25 - DESK_THICKNESS, DESK_DEPTH / 2 - 0.9]
+        ].forEach(pos => {
+            const leg = new THREE.Mesh(legGeo, legMat);
+            leg.position.set(...pos);
+            scene.add(leg);
+        });
+
+        /***********************************************************************
+         * 6. 3D PROCEDURAL PEN MESH GENERATOR
+         ***********************************************************************/
+        function createStripedNatarajTexture() {
+            const c = document.createElement('canvas');
+            c.width = 256;
+            c.height = 256;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#DC2626';
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.fillStyle = '#111827';
+            for (let i = -256; i < 512; i += 44) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i + 20, 0);
+                ctx.lineTo(i + 148, 256);
+                ctx.lineTo(i + 128, 256);
+                ctx.closePath();
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(c);
+        }
+        const natarajTex = createStripedNatarajTexture();
+
+        function buildPen3DMesh(penSpec, playerIndex) {
+            const root = new THREE.Group();
+            const visualGroup = new THREE.Group();
+            root.add(visualGroup);
+
+            const L = penSpec.length;
+            const R = penSpec.radius;
+            const isMetal = penSpec.materialType === 'metal';
+            const isHex = penSpec.id === 'nataraj';
+            const radialSegments = isHex ? 6 : 24;
+
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: isHex ? 0xffffff : penSpec.bodyColor,
+                map: isHex ? natarajTex : null,
+                roughness: isMetal ? 0.24 : (penSpec.materialType.includes('matte') ? 0.80 : 0.34),
+                metalness: isMetal ? 0.84 : 0.12
+            });
+
+            const capMat = new THREE.MeshStandardMaterial({
+                color: penSpec.capColor,
+                roughness: isMetal ? 0.2 : 0.38,
+                metalness: isMetal ? 0.9 : 0.15
+            });
+
+            const accentMat = new THREE.MeshStandardMaterial({
+                color: penSpec.accentColor,
+                roughness: 0.25,
+                metalness: 0.85
+            });
+
+            if (penSpec.id === 'vrt') {
+                // VRT Tournament Mod: Symmetric double-capped spinner with metal momentum rings
+                const barrelLen = L * 0.56;
+                const barrelGeo = new THREE.CylinderGeometry(R * 0.88, R * 0.88, barrelLen, 24);
+                barrelGeo.rotateZ(Math.PI / 2);
+                const barrel = new THREE.Mesh(barrelGeo, bodyMat);
+                barrel.castShadow = true;
+                visualGroup.add(barrel);
+
+                const endLen = L * 0.22;
+                [-1, 1].forEach(dir => {
+                    const capGeo = new THREE.CylinderGeometry(
+                        dir > 0 ? R * 0.76 : R * 1.08,
+                        dir > 0 ? R * 1.08 : R * 0.76,
+                        endLen, 20
+                    );
+                    capGeo.rotateZ(Math.PI / 2);
+                    const capMesh = new THREE.Mesh(capGeo, capMat);
+                    capMesh.position.x = dir * (barrelLen / 2 + endLen / 2);
+                    capMesh.castShadow = true;
+                    visualGroup.add(capMesh);
+
+                    const ringGeo = new THREE.CylinderGeometry(R * 1.16, R * 1.16, 0.16, 24);
+                    ringGeo.rotateZ(Math.PI / 2);
+                    const ring = new THREE.Mesh(ringGeo, accentMat);
+                    ring.position.x = dir * (barrelLen / 2);
+                    visualGroup.add(ring);
+                });
+            } else {
+                // Standard Pen Silhouette (+X is Nib Tip, -X is Cap/Clip)
+                const barrelLen = L * 0.62;
+                const barrelGeo = new THREE.CylinderGeometry(R, R * 0.94, barrelLen, radialSegments);
+                barrelGeo.rotateZ(Math.PI / 2);
+                const barrel = new THREE.Mesh(barrelGeo, bodyMat);
+                barrel.position.x = L * 0.04;
+                barrel.castShadow = true;
+                visualGroup.add(barrel);
+
+                // Rubberized Grip Zone for high-grip pens
+                if (penSpec.grip >= 0.60) {
+                    const gripGeo = new THREE.CylinderGeometry(R * 1.02, R * 0.98, barrelLen * 0.34, radialSegments);
+                    gripGeo.rotateZ(Math.PI / 2);
+                    const gripMat = new THREE.MeshStandardMaterial({
+                        color: 0x1E293B,
+                        roughness: 0.92,
+                        metalness: 0.05
+                    });
+                    const gripMesh = new THREE.Mesh(gripGeo, gripMat);
+                    gripMesh.position.x = barrel.position.x + barrelLen * 0.28;
+                    visualGroup.add(gripMesh);
+                }
+
+                // Conical Nib Section (+X)
+                const tipLen = L * 0.19;
+                const coneGeo = new THREE.ConeGeometry(R * 0.94, tipLen, radialSegments);
+                coneGeo.rotateZ(-Math.PI / 2);
+                const cone = new THREE.Mesh(coneGeo, penSpec.id === 'parker' ? capMat : accentMat);
+                cone.position.x = barrel.position.x + barrelLen / 2 + tipLen / 2;
+                cone.castShadow = true;
+                visualGroup.add(cone);
+
+                // Ballpoint Steel Nib
+                const nibGeo = new THREE.CylinderGeometry(0.016, 0.036, 0.12, 12);
+                nibGeo.rotateZ(Math.PI / 2);
+                const nib = new THREE.Mesh(nibGeo, new THREE.MeshStandardMaterial({ color: 0xE2E8F0, metalness: 0.95, roughness: 0.1 }));
+                nib.position.x = cone.position.x + tipLen / 2 + 0.04;
+                visualGroup.add(nib);
+
+                // Rear Cap (-X)
+                const capLen = L * 0.26;
+                const capGeo = new THREE.CylinderGeometry(R * 1.08, R * 1.04, capLen, radialSegments);
+                capGeo.rotateZ(Math.PI / 2);
+                const cap = new THREE.Mesh(capGeo, capMat);
+                cap.position.x = barrel.position.x - barrelLen / 2 - capLen / 2 + 0.12;
+                cap.castShadow = true;
+                visualGroup.add(cap);
+
+                // Center Trim Ring
+                const bandGeo = new THREE.CylinderGeometry(R * 1.09, R * 1.09, 0.10, 24);
+                bandGeo.rotateZ(Math.PI / 2);
+                const band = new THREE.Mesh(bandGeo, accentMat);
+                band.position.x = cap.position.x + capLen / 2;
+                visualGroup.add(band);
+
+                // Pocket Clip
+                if (penSpec.id !== 'nataraj') {
+                    const clipGeo = new THREE.BoxGeometry(capLen * 0.78, 0.045, 0.07);
+                    const clip = new THREE.Mesh(clipGeo, accentMat);
+                    clip.position.set(cap.position.x + 0.04, R * 1.24, 0);
+                    clip.castShadow = true;
+                    visualGroup.add(clip);
+                }
+            }
+
+            // Subtle Player Halo Ring on Desk Surface
+            const ringColor = playerIndex === 1 ? 0x2563EB : 0xE11D48;
+            const ringGeo = new THREE.RingGeometry(R * 1.5, R * 2.1, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: ringColor,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.55
+            });
+            const playerRing = new THREE.Mesh(ringGeo, ringMat);
+            playerRing.position.y = -R + 0.015;
+            root.add(playerRing);
+
+            return { root, visualGroup, playerRing };
+        }
+
+        /***********************************************************************
+         * 7. DETERMINISTIC RIGID-BODY ROD PEN ENTITY
+         * Models each pen on the tabletop with exact 2D planar rigid-body state
+         * (x, z, yaw, vx, vz, omega, rollAngle) + seamless 3D Cannon.js handoff
+         * when the pen's center of mass crosses the desk edge!
+         ***********************************************************************/
+        class PenFighter {
+            constructor(playerIndex, penId) {
+                this.playerIndex = playerIndex;
+                this.spec = PEN_ROSTER[penId];
+
+                // Moment of Inertia of a rigid rod: I = (1/12) * m * L^2 * inertiaScale
+                this.inertia = (1 / 12) * this.spec.mass * Math.pow(this.spec.length, 2) * this.spec.inertiaScale;
+
+                // Planar Tabletop Rigid-Body State
+                this.x = 0;
+                this.y = this.spec.radius;
+                this.z = 0;
+                this.yaw = 0;       // Orientation angle on XZ desk plane (radians)
+                this.vx = 0;
+                this.vz = 0;
+                this.omega = 0;     // Angular velocity around Y axis (rad/s)
+                this.rollAngle = 0; // Barrel roll around local X axis
+
+                // 3D Falling State (Activates when pen goes over desk edge)
+                this.isFalling3D = false;
+
+                // Visual Mesh
+                const built = buildPen3DMesh(this.spec, playerIndex);
+                this.mesh = built.root;
+                this.visualGroup = built.visualGroup;
+                this.playerRing = built.playerRing;
+                scene.add(this.mesh);
+
+                // Cannon Body for 3D Edge-Tumble & Gravity Fall
+                this.fallBody = new CANNON.Body({
+                    mass: this.spec.mass,
+                    shape: new CANNON.Box(new CANNON.Vec3(this.spec.length / 2, this.spec.radius, this.spec.radius))
+                });
+                world.addBody(this.fallBody);
+            }
+
+            resetToCorner() {
+                this.isFalling3D = false;
+                this.x = this.playerIndex === 1 ? -0.35 : 0.35;
+                this.y = this.spec.radius;
+                this.z = this.playerIndex === 1 ? 3.1 : -3.1;
+                this.yaw = this.playerIndex === 1 ? 0.08 : Math.PI + 0.08;
+                this.vx = 0;
+                this.vz = 0;
+                this.omega = 0;
+                this.rollAngle = 0;
+
+                this.fallBody.velocity.set(0, 0, 0);
+                this.fallBody.angularVelocity.set(0, 0, 0);
+                this.fallBody.position.set(this.x, this.y, this.z);
+                this.syncVisuals(0, false);
+            }
+
+            // Unit direction vector along the pen's barrel on the XZ plane
+            getAxisXZ() {
+                return {
+                    x: Math.cos(this.yaw),
+                    z: -Math.sin(this.yaw)
+                };
+            }
+
+            // World-space endpoints of the rigid pen rod segment on the XZ plane
+            getSegmentEndpointsXZ() {
+                const axis = this.getAxisXZ();
+                const halfL = this.spec.length * 0.5;
+                // Account for Center-of-Mass offset along barrel
+                const centerShiftX = -axis.x * this.spec.comOffset;
+                const centerShiftZ = -axis.z * this.spec.comOffset;
+                const geomCenterX = this.x + centerShiftX;
+                const geomCenterZ = this.z + centerShiftZ;
+
+                return {
+                    ax: geomCenterX - axis.x * halfL,
+                    az: geomCenterZ - axis.z * halfL,
+                    bx: geomCenterX + axis.x * halfL,
+                    bz: geomCenterZ + axis.z * halfL
+                };
+            }
+
+            // Step Tabletop Physics with True Dry Coulomb Sliding Friction
+            stepTabletop(dt) {
+                if (this.isFalling3D) {
+                    // Sync from Cannon.js 3D falling body
+                    this.x = this.fallBody.position.x;
+                    this.y = this.fallBody.position.y;
+                    this.z = this.fallBody.position.z;
+                    return;
+                }
+
+                // Integrate position & orientation
+                this.x += this.vx * dt;
+                this.z += this.vz * dt;
+                this.yaw += this.omega * dt;
+
+                // Compute lateral barrel roll visual from velocity perpendicular to pen axis
+                const axis = this.getAxisXZ();
+                const perpX = -axis.z;
+                const perpZ = axis.x;
+                const lateralSpeed = this.vx * perpX + this.vz * perpZ;
+                this.rollAngle += (lateralSpeed / this.spec.radius) * dt * 0.45;
+
+                // DRY COULOMB SLIDING FRICTION: decel = mu_slide * g * (0.85 + grip * 0.45)
+                const speed = Math.hypot(this.vx, this.vz);
+                if (speed > 0.0001) {
+                    const gripFactor = 0.85 + this.spec.grip * 0.45;
+                    // At very low speed (< 1.1 m/s), static table-bite increases slightly for a crisp stop
+                    const lowSpeedBite = speed < 1.1 ? 1.45 : 1.0;
+                    const linearDecel = this.spec.muSlide * GRAVITY_TABLE * gripFactor * lowSpeedBite;
+                    const newSpeed = Math.max(0, speed - linearDecel * dt);
+                    const ratio = newSpeed / speed;
+                    this.vx *= ratio;
+                    this.vz *= ratio;
+
+                    // Leave faint skid marks on the desk during high-speed knockback slides
+                    if (speed > 6.2 && Math.random() < 0.45) {
+                        stampDeskSkidMark(this.x, this.z, this.vx * 0.4, this.vz * 0.4, this.spec.grip);
+                    }
+                } else {
+                    this.vx = 0;
+                    this.vz = 0;
+                }
+
+                // Dry Coulomb Rotational Pivot Friction around Y axis
+                const absOmega = Math.abs(this.omega);
+                if (absOmega > 0.0001) {
+                    const gripTorqueFactor = 0.80 + this.spec.grip * 0.35;
+                    const lowSpinBite = absOmega < 2.2 ? 1.55 : 1.0;
+                    const angularDecel = (this.spec.muSlide * GRAVITY_TABLE * gripTorqueFactor * lowSpinBite * 1.45) / this.spec.inertiaScale;
+                    const newOmega = Math.max(0, absOmega - angularDecel * dt);
+                    this.omega = Math.sign(this.omega) * newOmega;
+                } else {
+                    this.omega = 0;
+                }
+
+                // Hexagonal facet snap for Nataraj 621 as it settles
+                if (this.spec.id === 'nataraj' && speed < 0.35 && absOmega < 0.5) {
+                    const nearestFacet = Math.round(this.rollAngle / (Math.PI / 3)) * (Math.PI / 3);
+                    this.rollAngle += (nearestFacet - this.rollAngle) * 0.25;
+                }
+
+                // Check if Center of Mass has crossed the Desk Edge -> Trigger 3D Edge Tumble!
+                const halfW = DESK_WIDTH * 0.5;
+                const halfD = DESK_DEPTH * 0.5;
+                if (Math.abs(this.x) > halfW || Math.abs(this.z) > halfD) {
+                    this.isFalling3D = true;
+                    this.fallBody.position.set(this.x, this.y, this.z);
+                    this.fallBody.velocity.set(this.vx, -0.8, this.vz);
+                    this.fallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.yaw);
+
+                    // Add tipping torque over the edge
+                    const tipSpinX = this.z > halfD ? 5.5 : (this.z < -halfD ? -5.5 : 0);
+                    const tipSpinZ = this.x > halfW ? -5.5 : (this.x < -halfW ? 5.5 : 0);
+                    this.fallBody.angularVelocity.set(tipSpinX, this.omega, tipSpinZ);
+                    this.fallBody.wakeUp();
+                }
+            }
+
+            syncVisuals(elapsed, isActiveTurn) {
+                if (this.isFalling3D) {
+                    this.mesh.position.copy(this.fallBody.position);
+                    this.mesh.quaternion.copy(this.fallBody.quaternion);
+                    this.playerRing.visible = false;
+                    return;
+                }
+
+                this.mesh.position.set(this.x, this.y, this.z);
+                this.mesh.rotation.set(0, this.yaw, 0);
+
+                // Apply barrel roll around local X axis
+                this.visualGroup.rotation.set(this.rollAngle, 0, 0);
+                this.visualGroup.position.set(-this.spec.comOffset, 0, 0);
+
+                this.playerRing.visible = true;
+                this.playerRing.material.opacity = isActiveTurn ? (0.55 + Math.sin(elapsed * 6) * 0.25) : 0.25;
+
+                // Custom Idle Animations when stationary on active turn
+                if (isActiveTurn && gameState.phase === 'AIMING' && this.getSpeed() < 0.05) {
+                    const style = this.spec.idleStyle;
+                    if (style === 'heavy_shimmer') {
+                        this.visualGroup.position.y = Math.sin(elapsed * 2.4) * 0.015;
+                    } else if (style === 'micro_tremor') {
+                        this.visualGroup.position.z = Math.sin(elapsed * 26) * 0.008;
+                    } else if (style === 'gyro_rock') {
+                        this.visualGroup.rotation.y = Math.sin(elapsed * 4.0) * 0.032;
+                    } else if (style === 'hex_snap') {
+                        this.visualGroup.rotation.x = Math.round(Math.sin(elapsed * 3.2)) * 0.045;
+                    } else if (style === 'tactical_pulse') {
+                        this.visualGroup.position.y = Math.abs(Math.sin(elapsed * 3.2)) * 0.014;
+                    } else {
+                        this.visualGroup.rotation.z = Math.sin(elapsed * 3.0) * 0.024;
+                    }
+                }
+            }
+
+            getSpeed() {
+                if (this.isFalling3D) return this.fallBody.velocity.length();
+                return Math.hypot(this.vx, this.vz) + Math.abs(this.omega) * 0.25;
+            }
+
+            getEdgeSafetyPercent() {
+                if (this.isFalling3D || this.y < -0.2) return 0;
+                const xRatio = Math.abs(this.x) / (DESK_WIDTH * 0.5);
+                const zRatio = Math.abs(this.z) / (DESK_DEPTH * 0.5);
+                const worst = Math.max(xRatio, zRatio);
+                return Math.max(0, Math.min(100, Math.round((1 - Math.pow(worst, 1.8)) * 100)));
+            }
+
+            destroy() {
+                scene.remove(this.mesh);
+                world.removeBody(this.fallBody);
+            }
+        }
+
+        /***********************************************************************
+         * 8. EXACT LINE-SEGMENT CLOSEST POINTS & RIGID-BODY IMPULSE SOLVER
+         * Solves pen-vs-pen collisions with zero tunneling, zero 1/mass^2 bug,
+         * and authentic lever-arm torque vs linear knockback transfer!
+         ***********************************************************************/
+        function closestPointsBetweenSegments2D(ax, az, bx, bz, cx, cz, dx, dz) {
+            const ux = bx - ax, uz = bz - az;
+            const vx = dx - cx, vz = dz - cz;
+            const wx = ax - cx, wz = az - cz;
+
+            const a = ux * ux + uz * uz;
+            const b = ux * vx + uz * vz;
+            const c = vx * vx + vz * vz;
+            const d = ux * wx + uz * wz;
+            const e = vx * wx + vz * wz;
+            const D = a * c - b * b;
+
+            let sc, sN, sD = D;
+            let tc, tN, tD = D;
+
+            if (D < 1e-7) {
+                sN = 0.0;
+                sD = 1.0;
+                tN = e;
+                tD = c;
+            } else {
+                sN = (b * e - c * d);
+                tN = (a * e - b * d);
+                if (sN < 0.0) {
+                    sN = 0.0;
+                    tN = e;
+                    tD = c;
+                } else if (sN > sD) {
+                    sN = sD;
+                    tN = e + b;
+                    tD = c;
+                }
+            }
+
+            if (tN < 0.0) {
+                tN = 0.0;
+                if (-d < 0.0) sN = 0.0;
+                else if (-d > a) sN = sD;
+                else { sN = -d; sD = a; }
+            } else if (tN > tD) {
+                tN = tD;
+                if ((-d + b) < 0.0) sN = 0;
+                else if ((-d + b) > a) sN = sD;
+                else { sN = (-d + b); sD = a; }
+            }
+
+            sc = (Math.abs(sN) < 1e-7 ? 0.0 : sN / sD);
+            tc = (Math.abs(tN) < 1e-7 ? 0.0 : tN / tD);
+
+            return {
+                pAx: ax + sc * ux,
+                pAz: az + sc * uz,
+                pBx: cx + tc * vx,
+                pBz: cz + tc * vz,
+                s: sc, // 0..1 along segment A
+                t: tc  // 0..1 along segment B
+            };
+        }
+
+        let pen1 = null;
+        let pen2 = null;
+        let lastSoundTime = 0;
+        let toastTimeout = null;
+
+        function showImpactTelemetryToast(impactType, skidCm, defenderName, gripReductionPct) {
+            const toast = document.getElementById('impact-toast');
+            document.getElementById('impact-toast-type').textContent = impactType;
+            document.getElementById('impact-toast-skid').textContent = `${skidCm.toFixed(1)} cm Knockback`;
+            document.getElementById('impact-toast-sub').textContent = `${defenderName} Grip Resisted -${gripReductionPct}% Linear Push`;
+
+            toast.classList.remove('opacity-0', '-translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-2');
+            }, 2400);
+        }
+
+        function solveRigidPenContact(A, B) {
+            if (A.isFalling3D || B.isFalling3D) return;
+
+            const segA = A.getSegmentEndpointsXZ();
+            const segB = B.getSegmentEndpointsXZ();
+
+            const cp = closestPointsBetweenSegments2D(
+                segA.ax, segA.az, segA.bx, segA.bz,
+                segB.ax, segB.az, segB.bx, segB.bz
+            );
+
+            let dx = cp.pBx - cp.pAx;
+            let dz = cp.pBz - cp.pAz;
+            let dist = Math.hypot(dx, dz);
+            const minDist = A.spec.radius + B.spec.radius;
+
+            if (dist >= minDist) return;
+
+            // 1. Clean Collision Normal (from A to B)
+            let nx, nz;
+            if (dist > 1e-5) {
+                nx = dx / dist;
+                nz = dz / dist;
+            } else {
+                const cdx = B.x - A.x;
+                const cdz = B.z - A.z;
+                const cDist = Math.hypot(cdx, cdz) || 1;
+                nx = cdx / cDist;
+                nz = cdz / cDist;
+                dist = 0;
+            }
+
+            // 2. Positional Penetration Resolution (Prevents overlap & double-triggering)
+            const penetration = (minDist - dist) + 0.002;
+            const totalInvMass = (1 / A.spec.mass) + (1 / B.spec.mass);
+            A.x -= nx * penetration * ((1 / A.spec.mass) / totalInvMass);
+            A.z -= nz * penetration * ((1 / A.spec.mass) / totalInvMass);
+            B.x += nx * penetration * ((1 / B.spec.mass) / totalInvMass);
+            B.z += nz * penetration * ((1 / B.spec.mass) / totalInvMass);
+
+            // Contact point in world XZ
+            const contactX = 0.5 * (cp.pAx + cp.pBx);
+            const contactZ = 0.5 * (cp.pAz + cp.pBz);
+
+            // Lever arms from each pen's Center of Mass to the exact Contact Point
+            const rAx = contactX - A.x;
+            const rAz = contactZ - A.z;
+            const rBx = contactX - B.x;
+            const rBz = contactZ - B.z;
+
+            // Note on our coordinate convention:
+            // yaw rotates counter-clockwise in (x, -z), so point velocity from omega is:
+            // v_rot_x = -omega * r_z, v_rot_z = +omega * r_x
+            const vAx = A.vx - A.omega * rAz;
+            const vAz = A.vz + A.omega * rAx;
+            const vBx = B.vx - B.omega * rBz;
+            const vBz = B.vz + B.omega * rBx;
+
+            // Relative velocity at contact point (vB - vA) along normal
+            const relVx = vBx - vAx;
+            const relVz = vBz - vAz;
+            const velAlongNormal = relVx * nx + relVz * nz;
+
+            // Do not apply impulse if pens are already separating at the contact point
+            if (velAlongNormal > 0) return;
+
+            // Identify Attacker vs Defender (for Grip Knockback Resistance & Telemetry)
+            const keA = A.spec.mass * (A.vx * A.vx + A.vz * A.vz) + A.inertia * A.omega * A.omega;
+            const keB = B.spec.mass * (B.vx * B.vx + B.vz * B.vz) + B.inertia * B.omega * B.omega;
+            const attacker = keA >= keB ? A : B;
+            const defender = keA >= keB ? B : A;
+
+            // 3. EXACT RIGID-BODY LINE-SEGMENT IMPULSE FORMULA:
+            // J = -(1 + e) * v_rel_n / ( 1/mA + 1/mB + (rA x n)^2 / IA + (rB x n)^2 / IB )
+            const e = Math.min(0.82, 0.5 * (A.spec.restitution + B.spec.restitution) + 0.12);
+
+            // 2D Cross product scalar (r x n) matching our yaw convention: r_z * n_x - r_x * n_z
+            const rA_cross_n = -rAz * nx + rAx * nz;
+            const rB_cross_n = -rBz * nx + rBx * nz;
+
+            const denom = (1 / A.spec.mass)
+                        + (1 / B.spec.mass)
+                        + (rA_cross_n * rA_cross_n) / A.inertia
+                        + (rB_cross_n * rB_cross_n) / B.inertia;
+
+            // Slight boost factor (1.18) so stationary pens respond with crisp tabletop snap
+            const J = (-(1 + e) * velAlongNormal / denom) * 1.18;
+
+            // 4. Apply Grip (Knockback Resistance) exclusively to Defender's LINEAR push,
+            // while preserving full rotational lever-arm whip (r x J / I)!
+            const gripLinearScaleA = (A === defender) ? (1.0 - A.spec.grip * 0.45) : 1.0;
+            const gripLinearScaleB = (B === defender) ? (1.0 - B.spec.grip * 0.45) : 1.0;
+
+            const impulseX = J * nx;
+            const impulseZ = J * nz;
+
+            // Apply Linear Velocity Delta (Delta V = J / m, applied ONCE — NO 1/mass^2 bug!)
+            A.vx -= (impulseX / A.spec.mass) * gripLinearScaleA;
+            A.vz -= (impulseZ / A.spec.mass) * gripLinearScaleA;
+            B.vx += (impulseX / B.spec.mass) * gripLinearScaleB;
+            B.vz += (impulseZ / B.spec.mass) * gripLinearScaleB;
+
+            // Apply Angular Velocity Delta (Delta Omega = (r x J) / I)
+            // When hit at the tip (|r| is large), this creates authentic circular whip!
+            // When hit at the center (|r| ~ 0), almost 100% goes into linear skid!
+            A.omega -= (J * rA_cross_n) / A.inertia;
+            B.omega += (J * rB_cross_n) / B.inertia;
+
+            // Tangential friction impulse between pen barrels during grazing/spinning strikes
+            const tx = -nz;
+            const tz = nx;
+            const velAlongTangent = relVx * tx + relVz * tz;
+            const muPen = 0.18;
+            const Jt = Math.max(-muPen * J, Math.min(muPen * J, -velAlongTangent / denom));
+
+            A.vx -= (Jt * tx) / A.spec.mass;
+            A.vz -= (Jt * tz) / A.spec.mass;
+            B.vx += (Jt * tx) / B.spec.mass;
+            B.vz += (Jt * tz) / B.spec.mass;
+
+            // 5. Hard-Clamp Maximum Post-Impact Speeds to Realistic Human Finger-Flick Limits
+            const MAX_POST_IMPACT_SPEED = 15.5;
+            const MAX_POST_IMPACT_OMEGA = 28.0;
+            [A, B].forEach(p => {
+                const spd = Math.hypot(p.vx, p.vz);
+                if (spd > MAX_POST_IMPACT_SPEED) {
+                    p.vx = (p.vx / spd) * MAX_POST_IMPACT_SPEED;
+                    p.vz = (p.vz / spd) * MAX_POST_IMPACT_SPEED;
+                }
+                if (Math.abs(p.omega) > MAX_POST_IMPACT_OMEGA) {
+                    p.omega = Math.sign(p.omega) * MAX_POST_IMPACT_OMEGA;
+                }
+            });
+
+            // 6. Audio, Sparks, 20ms Micro-Hitstop & Clash Telemetry Toast
+            const now = performance.now();
+            const impactSeverity = Math.abs(velAlongNormal);
+            if (impactSeverity > 1.2 && now - lastSoundTime > 55) {
+                lastSoundTime = now;
+                const isMetal = A.spec.materialType === 'metal' || B.spec.materialType === 'metal';
+                sfx.playClash(impactSeverity, isMetal);
+                triggerImpactSpark(contactX, Math.max(A.y, B.y), contactZ, impactSeverity);
+
+                if (impactSeverity > 4.5) {
+                    gameState.hitstopTimer = 0.020; // 20ms crisp contact freeze
+                }
+
+                // Classify Impact Type based on lever arm on Defender
+                const defLeverDist = Math.hypot(contactX - defender.x, contactZ - defender.z);
+                const defLeverRatio = defLeverDist / (defender.spec.length * 0.5);
+                let impactLabel = 'CENTER T-BONE RAM';
+                if (defLeverRatio > 0.55) {
+                    impactLabel = 'TIP PIVOT WHIP';
+                } else if (Math.abs(attacker.omega) > 9.0) {
+                    impactLabel = 'SPINNING SLASH HIT';
+                }
+
+                // Estimate physical skid distance d = v^2 / (2 * decel) in centimeters
+                const defSpeed = Math.hypot(defender.vx, defender.vz);
+                const defDecel = defender.spec.muSlide * GRAVITY_TABLE * (0.85 + defender.spec.grip * 0.45);
+                const estimatedSkidMeters = (defSpeed * defSpeed) / (2 * defDecel);
+                const skidCm = Math.min(38, Math.max(1.2, estimatedSkidMeters * 4.5));
+                const gripRedPct = Math.round(defender.spec.grip * 45);
+
+                showImpactTelemetryToast(impactLabel, skidCm, defender.spec.brand, gripRedPct);
+            }
+        }
+
+        function spawnPens() {
+            if (pen1) pen1.destroy();
+            if (pen2) pen2.destroy();
+
+            pen1 = new PenFighter(1, gameState.p1PenId);
+            pen2 = new PenFighter(2, gameState.p2PenId);
+
+            pen1.resetToCorner();
+            pen2.resetToCorner();
+            updateHUDLabels();
+        }
+
+        /***********************************************************************
+         * 9. VISUAL AIMING VECTOR, TRAJECTORY LINE & SPARKS
+         ***********************************************************************/
+        const aimGroup = new THREE.Group();
+        scene.add(aimGroup);
+        aimGroup.visible = false;
+
+        const strikeMarkerGeo = new THREE.SphereGeometry(0.11, 16, 16);
+        const strikeMarkerMat = new THREE.MeshBasicMaterial({ color: 0x6750A4 });
+        const strikeMarker = new THREE.Mesh(strikeMarkerGeo, strikeMarkerMat);
+        aimGroup.add(strikeMarker);
+
+        const arrowShaftGeo = new THREE.CylinderGeometry(0.045, 0.045, 1, 12);
+        arrowShaftGeo.rotateX(Math.PI / 2);
+        const arrowShaftMat = new THREE.MeshBasicMaterial({ color: 0x6750A4 });
+        const arrowShaft = new THREE.Mesh(arrowShaftGeo, arrowShaftMat);
+        aimGroup.add(arrowShaft);
+
+        const arrowHeadGeo = new THREE.ConeGeometry(0.15, 0.36, 16);
+        arrowHeadGeo.rotateX(Math.PI / 2);
+        const arrowHead = new THREE.Mesh(arrowHeadGeo, arrowShaftMat);
+        aimGroup.add(arrowHead);
+
+        // Projected Dotted Trajectory Line
+        const trajPoints = [new THREE.Vector3(), new THREE.Vector3()];
+        const trajGeo = new THREE.BufferGeometry().setFromPoints(trajPoints);
+        const trajMat = new THREE.LineDashedMaterial({ color: 0x6750A4, dashSize: 0.25, gapSize: 0.15 });
+        const trajLine = new THREE.Line(trajGeo, trajMat);
+        aimGroup.add(trajLine);
+
+        // Spin Torque Arc Indicator
+        const spinArcGeo = new THREE.RingGeometry(0.26, 0.34, 24, 1, 0, Math.PI * 1.4);
+        spinArcGeo.rotateX(-Math.PI / 2);
+        const spinArcMat = new THREE.MeshBasicMaterial({ color: 0xF59E0B, side: THREE.DoubleSide });
+        const spinArc = new THREE.Mesh(spinArcGeo, spinArcMat);
+        aimGroup.add(spinArc);
+
+        // Collision Spark Ring
+        const sparkGeo = new THREE.RingGeometry(0.08, 0.36, 24);
+        sparkGeo.rotateX(-Math.PI / 2);
+        const sparkMat = new THREE.MeshBasicMaterial({ color: 0xFBBF24, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+        const sparkMesh = new THREE.Mesh(sparkGeo, sparkMat);
+        scene.add(sparkMesh);
+        let sparkScale = 1;
+
+        function triggerImpactSpark(x, y, z, intensity) {
+            sparkMesh.position.set(x, Math.max(0.15, y), z);
+            sparkMesh.material.opacity = Math.min(0.95, 0.4 + intensity * 0.06);
+            sparkScale = 0.5;
+            sparkMesh.scale.set(sparkScale, sparkScale, sparkScale);
+            cameraShake = Math.min(0.28, intensity * 0.016);
+        }
+
+        /***********************************************************************
+         * 10. STRIKE-POINT FLICK INPUT & CAMERA ORBIT CONTROLS
+         ***********************************************************************/
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        const deskPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.15);
+
+        let isDraggingPen = false;
+        let isOrbitingCamera = false;
+        let orbitPrev = { x: 0, y: 0 };
+        let camSpherical = { theta: 0, phi: 0.88, radius: 15.2 };
+        let cameraTarget = new THREE.Vector3(0, 0, 0);
+        let cameraShake = 0;
+
+        let strikeWorldPoint = new THREE.Vector3();
+        let strikeLocalOffset = 0; // -1 (Cap) to +1 (Tip) along pen length
+        let currentDragPoint = new THREE.Vector3();
+
+        function getActivePen() {
+            return gameState.turn === 1 ? pen1 : pen2;
+        }
+
+        function updatePointerCoords(e) {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            pointer.x = (clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+            return { clientX, clientY };
+        }
+
+        function onPointerDown(e) {
+            if (e.target.closest('header') || e.target.closest('#loadout-modal') || e.target.closest('#ko-modal')) return;
+            const { clientX, clientY } = updatePointerCoords(e);
+
+            const canFlick = gameState.phase === 'AIMING' && !(gameState.mode === '1p' && gameState.turn === 2);
+            const activePen = getActivePen();
+
+            if (canFlick && activePen && !activePen.isFalling3D) {
+                raycaster.setFromCamera(pointer, camera);
+                const hits = raycaster.intersectObject(activePen.visualGroup, true);
+
+                const planeHit = new THREE.Vector3();
+                raycaster.ray.intersectPlane(deskPlane, planeHit);
+
+                if (hits.length > 0 || (planeHit && planeHit.distanceTo(activePen.mesh.position) < activePen.spec.length * 0.65)) {
+                    isDraggingPen = true;
+                    strikeWorldPoint.copy(hits.length > 0 ? hits[0].point : planeHit);
+
+                    // Project strike point onto the pen's local barrel axis (-1 to +1)
+                    const localPt = activePen.mesh.worldToLocal(strikeWorldPoint.clone());
+                    const halfL = activePen.spec.length * 0.5;
+                    strikeLocalOffset = Math.max(-1, Math.min(1, localPt.x / halfL));
+
+                    const snappedLocal = new THREE.Vector3(strikeLocalOffset * halfL * 0.92, 0.12, 0);
+                    strikeWorldPoint.copy(activePen.mesh.localToWorld(snappedLocal));
+                    currentDragPoint.copy(strikeWorldPoint);
+
+                    aimGroup.visible = true;
+                    document.getElementById('aim-telemetry').classList.remove('hidden');
+                    sfx.playUI(620, 0.04);
+                    updateAimVisuals();
+                    return;
+                }
+            }
+
+            isOrbitingCamera = true;
+            orbitPrev = { x: clientX, y: clientY };
+        }
+
+        function onPointerMove(e) {
+            if (!isDraggingPen && !isOrbitingCamera) return;
+            const { clientX, clientY } = updatePointerCoords(e);
+
+            if (isDraggingPen) {
+                raycaster.setFromCamera(pointer, camera);
+                const planeHit = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(deskPlane, planeHit)) {
+                    currentDragPoint.copy(planeHit);
+                    updateAimVisuals();
+                }
+            } else if (isOrbitingCamera && gameState.cameraMode === 'perspective') {
+                const dx = clientX - orbitPrev.x;
+                const dy = clientY - orbitPrev.y;
+                camSpherical.theta -= dx * 0.007;
+                camSpherical.phi = Math.max(0.26, Math.min(1.32, camSpherical.phi - dy * 0.006));
+                orbitPrev = { x: clientX, y: clientY };
+            }
+        }
+
+        function onPointerUp() {
+            if (isDraggingPen) {
+                isDraggingPen = false;
+                aimGroup.visible = false;
+                document.getElementById('aim-telemetry').classList.add('hidden');
+
+                const activePen = getActivePen();
+                const dragVec = new THREE.Vector3().subVectors(strikeWorldPoint, currentDragPoint);
+                dragVec.y = 0;
+
+                if (dragVec.length() > 0.28 && activePen) {
+                    executeRigidFlick(activePen, dragVec, strikeLocalOffset);
+                }
+            }
+            isOrbitingCamera = false;
+        }
+
+        function updateAimVisuals() {
+            const activePen = getActivePen();
+            if (!activePen) return;
+
+            const halfL = activePen.spec.length * 0.5;
+            const localStrike = new THREE.Vector3(strikeLocalOffset * halfL * 0.92, 0.12, 0);
+            strikeWorldPoint.copy(activePen.mesh.localToWorld(localStrike));
+            strikeMarker.position.copy(strikeWorldPoint);
+
+            const pullVec = new THREE.Vector3().subVectors(strikeWorldPoint, currentDragPoint);
+            pullVec.y = 0;
+            const maxPull = 3.8;
+            const clampedLen = Math.min(maxPull, pullVec.length());
+            const powerPct = Math.round((clampedLen / maxPull) * 100);
+
+            const dir = pullVec.lengthSq() > 0.0001 ? pullVec.clone().normalize() : new THREE.Vector3(0, 0, -1);
+            const arrowLen = Math.max(0.18, clampedLen * 1.1);
+
+            const shaftMid = strikeWorldPoint.clone().addScaledVector(dir, arrowLen * 0.5);
+            arrowShaft.position.copy(shaftMid);
+            arrowShaft.scale.set(1, 1, arrowLen);
+            arrowShaft.lookAt(strikeWorldPoint.clone().add(dir));
+
+            arrowHead.position.copy(strikeWorldPoint).addScaledVector(dir, arrowLen + 0.16);
+            arrowHead.lookAt(strikeWorldPoint.clone().addScaledVector(dir, arrowLen + 1));
+
+            // Update Projected Trajectory Line
+            trajLine.geometry.setFromPoints([
+                strikeWorldPoint.clone(),
+                strikeWorldPoint.clone().addScaledVector(dir, arrowLen * 2.1)
+            ]);
+            trajLine.computeLineDistances();
+
+            const colorHex = powerPct > 80 ? 0xE11D48 : (powerPct > 45 ? 0xD97706 : 0x6750A4);
+            arrowShaftMat.color.setHex(colorHex);
+            strikeMarkerMat.color.setHex(colorHex);
+
+            const absLever = Math.abs(strikeLocalOffset);
+            spinArc.position.set(activePen.x, 0.06, activePen.z);
+            spinArc.scale.setScalar(0.65 + absLever * 0.85);
+            spinArc.rotation.z += 0.12;
+
+            const zoneLabel = absLever > 0.50
+                ? (strikeLocalOffset > 0 ? 'Nib Tip (Whip Slash)' : 'Tail Cap (Sweep Spin)')
+                : 'Center Barrel (Heavy Ram)';
+            const spinPct = Math.round(absLever * 78);
+            const ramPct = 100 - spinPct;
+
+            document.getElementById('telemetry-point').textContent = zoneLabel;
+            document.getElementById('telemetry-power').textContent = `${powerPct}%`;
+            document.getElementById('telemetry-ratio').textContent = `${spinPct}% Whip / ${ramPct}% Ram`;
+        }
+
+        /***********************************************************************
+         * 11. RIGID-BODY FINGER FLICK IMPULSE APPLICATION
+         * Applies exact point impulse at the chosen strike offset along the barrel:
+         * Center strike -> Pure linear velocity ram.
+         * Tip/Cap strike -> High angular velocity whip + moderate forward glide.
+         ***********************************************************************/
+        function executeRigidFlick(pen, pullVec, normalizedOffset) {
+            const maxPull = 3.8;
+            const clampedPull = Math.min(maxPull, pullVec.length());
+            const powerRatio = clampedPull / maxPull;
+            const dir = pullVec.clone().normalize();
+
+            // Realistic human finger-flick impulse magnitude
+            // Slightly scaled with mass^0.75 so heavier pens carry high momentum without light pens going supersonic
+            const impulseMag = (9.5 + powerRatio * 34.0) * Math.pow(pen.spec.mass / 4.0, 0.72);
+
+            const halfL = pen.spec.length * 0.5;
+            const axis = pen.getAxisXZ();
+            const leverDist = normalizedOffset * halfL * 0.90;
+
+            // Strike vector r from Center of Mass to Strike Point
+            const rx = axis.x * leverDist;
+            const rz = axis.z * leverDist;
+
+            // 2D cross product (r x dir)
+            const r_cross_dir = -rz * dir.x + rx * dir.z;
+            const absLever = Math.abs(normalizedOffset);
+
+            // Linear velocity imparted: v = (J / m) * linearShare
+            const linearShare = 1.0 - absLever * 0.36;
+            pen.vx = (dir.x * impulseMag / pen.spec.mass) * linearShare;
+            pen.vz = (dir.z * impulseMag / pen.spec.mass) * linearShare;
+
+            // Angular velocity imparted: omega = (r x J) / I
+            const torqueImpulse = impulseMag * r_cross_dir * 1.42;
+            pen.omega = Math.max(-26, Math.min(26, torqueImpulse / pen.inertia));
+
+            sfx.playFlick(powerRatio, absLever);
+
+            gameState.phase = 'MOVING';
+            gameState.settleTimer = 0;
+            updateTurnBanner();
+        }
+
+        window.addEventListener('wheel', (e) => {
+            if (gameState.cameraMode === 'perspective') {
+                camSpherical.radius = Math.max(8.5, Math.min(24, camSpherical.radius + e.deltaY * 0.01));
+            }
+        }, { passive: true });
+
+        window.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchstart', onPointerDown, { passive: true });
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp);
+
+        /***********************************************************************
+         * 12. TACTICAL AI CONTROLLER
+         ***********************************************************************/
+        function triggerAITurn() {
+            gameState.phase = 'AI_THINKING';
+            updateTurnBanner();
+
+            setTimeout(() => {
+                if (gameState.phase !== 'AI_THINKING' || !pen2 || !pen1) return;
+
+                const dx = pen1.x - pen2.x;
+                const dz = pen1.z - pen2.z;
+                const dist = Math.hypot(dx, dz);
+
+                // Choose between spinning whip slash or direct center ram
+                const useSpinSlash = pen2.spec.stats.spin >= 88 && Math.random() > 0.35;
+                const strikeOffset = useSpinSlash ? (Math.random() > 0.5 ? 0.76 : -0.76) : (Math.random() * 0.26 - 0.13);
+
+                const aimDir = new THREE.Vector3(dx, 0, dz).normalize();
+                const jitter = (Math.random() - 0.5) * 0.09;
+                aimDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), jitter);
+
+                const pullMag = Math.min(3.5, Math.max(1.6, dist * 0.42 + 1.2));
+                executeRigidFlick(pen2, aimDir.multiplyScalar(pullMag), strikeOffset);
+            }, 850);
+        }
+
+        /***********************************************************************
+         * 13. MATERIAL DESIGN 3 UI & ROSTER CARDS
+         ***********************************************************************/
+        function renderRosterCards() {
+            const grid = document.getElementById('pen-roster-grid');
+            grid.innerHTML = '';
+
+            const activeSelectedId = gameState.editingSlot === 1 ? gameState.p1PenId : gameState.p2PenId;
+
+            Object.values(PEN_ROSTER).forEach(pen => {
+                const isSelected = pen.id === activeSelectedId;
+                const isP1 = pen.id === gameState.p1PenId;
+                const isP2 = pen.id === gameState.p2PenId;
+                const gripPct = Math.round(pen.grip * 100);
+
+                const card = document.createElement('div');
+                card.className = `rounded-2xl p-4 cursor-pointer transition-all border-2 flex flex-col justify-between ${
+                    isSelected
+                        ? 'border-md-primary bg-md-primaryContainer/35 shadow-md scale-[1.01]'
+                        : 'border-md-outlineVariant/60 bg-white/85 hover:bg-white hover:border-md-primary/50'
+                }`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:${pen.accentColor}20; color:${pen.accentColor}">
+                                ${pen.brand}
+                            </span>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-mono font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full">${pen.mass.toFixed(1)}g</span>
+                                ${isP1 ? '<span class="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">P1</span>' : ''}
+                                ${isP2 ? '<span class="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-full">P2</span>' : ''}
+                            </div>
+                        </div>
+
+                        <h4 class="font-extrabold text-sm text-[#1D1B20]">${pen.name}</h4>
+                        <p class="text-[11px] font-medium text-md-secondary mt-0.5">${pen.tagline}</p>
+
+                        <!-- Visual Silhouette Bar -->
+                        <div class="my-3 h-5 rounded-full bg-md-surfaceHighest flex items-center px-2 overflow-hidden">
+                            <div class="h-2.5 rounded-l-full" style="width: 26%; background:${pen.capColor}"></div>
+                            <div class="h-2.5" style="width: 4%; background:${pen.accentColor}"></div>
+                            <div class="h-2.5" style="width: 55%; background:${pen.bodyColor}"></div>
+                            <div class="h-2 rounded-r-full" style="width: 15%; background:${pen.accentColor}"></div>
+                        </div>
+
+                        <!-- Stat Bars -->
+                        <div class="space-y-1.5 text-[11px] mt-2">
+                            <div class="flex items-center gap-2">
+                                <span class="w-20 text-md-secondary font-medium">Mass</span>
+                                <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-slate-700 rounded-full" style="width:${pen.stats.weight}%"></div>
+                                </div>
+                                <span class="font-mono font-bold w-9 text-right">${pen.mass.toFixed(1)}g</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-20 text-teal-800 font-bold">Grip Anchor</span>
+                                <div class="flex-1 h-1.5 bg-teal-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-teal-600 rounded-full" style="width:${gripPct}%"></div>
+                                </div>
+                                <span class="font-mono font-bold text-teal-800 w-9 text-right">${gripPct}%</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-20 text-md-secondary font-medium">Spin Whip</span>
+                                <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-amber-500 rounded-full" style="width:${pen.stats.spin}%"></div>
+                                </div>
+                                <span class="font-mono font-bold w-9 text-right">${pen.stats.spin}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-20 text-md-secondary font-medium">Ricochet</span>
+                                <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-emerald-600 rounded-full" style="width:${pen.stats.ricochet}%"></div>
+                                </div>
+                                <span class="font-mono font-bold w-9 text-right">${pen.stats.ricochet}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-gray-200/70 flex items-center justify-between text-[10px] text-md-secondary">
+                        <span>Linear KB Resist: <strong class="text-teal-800">-${Math.round(pen.grip * 45)}%</strong></span>
+                        <span class="font-mono">L: ${pen.length}u</span>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    sfx.playUI(580, 0.05);
+                    if (gameState.editingSlot === 1) {
+                        gameState.p1PenId = pen.id;
+                    } else {
+                        gameState.p2PenId = pen.id;
+                    }
+                    updateModalSlotHeaders();
+                    renderRosterCards();
+                    spawnPens();
+                });
+
+                grid.appendChild(card);
+            });
+        }
+
+        function updateModalSlotHeaders() {
+            const p1Spec = PEN_ROSTER[gameState.p1PenId];
+            const p2Spec = PEN_ROSTER[gameState.p2PenId];
+
+            document.getElementById('slot-p1-name').textContent = p1Spec.name;
+            document.getElementById('slot-p1-trait').textContent = `${p1Spec.mass.toFixed(1)}g • ${Math.round(p1Spec.grip * 100)}% Grip • ${p1Spec.tagline}`;
+            document.getElementById('slot-p2-name').textContent = p2Spec.name;
+            document.getElementById('slot-p2-trait').textContent = `${p2Spec.mass.toFixed(1)}g • ${Math.round(p2Spec.grip * 100)}% Grip • ${p2Spec.tagline}`;
+
+            const s1 = document.getElementById('slot-p1');
+            const s2 = document.getElementById('slot-p2');
+            const b1 = document.getElementById('slot-p1-badge');
+            const b2 = document.getElementById('slot-p2-badge');
+
+            if (gameState.editingSlot === 1) {
+                s1.className = 'p-3.5 rounded-2xl border-2 border-blue-600 bg-blue-50/80 text-left transition-all flex items-center justify-between';
+                s2.className = 'p-3.5 rounded-2xl border-2 border-md-outlineVariant bg-white/60 hover:bg-white text-left transition-all flex items-center justify-between';
+                b1.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-600 text-white';
+                b1.textContent = 'Editing P1';
+                b2.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-md-surfaceHighest text-md-secondary';
+                b2.textContent = 'Edit P2';
+            } else {
+                s1.className = 'p-3.5 rounded-2xl border-2 border-md-outlineVariant bg-white/60 hover:bg-white text-left transition-all flex items-center justify-between';
+                s2.className = 'p-3.5 rounded-2xl border-2 border-rose-600 bg-rose-50/80 text-left transition-all flex items-center justify-between';
+                b1.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-md-surfaceHighest text-md-secondary';
+                b1.textContent = 'Edit P1';
+                b2.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-600 text-white';
+                b2.textContent = 'Editing P2';
+            }
+        }
+
+        function updateHUDLabels() {
+            const p1Spec = PEN_ROSTER[gameState.p1PenId];
+            const p2Spec = PEN_ROSTER[gameState.p2PenId];
+
+            document.getElementById('p1-pen-label').textContent = p1Spec.brand;
+            document.getElementById('p2-pen-label').textContent = p2Spec.brand;
+            document.getElementById('p1-mass-badge').textContent = `${p1Spec.mass.toFixed(1)}g`;
+            document.getElementById('p2-mass-badge').textContent = `${p2Spec.mass.toFixed(1)}g`;
+            document.getElementById('p1-grip-badge').textContent = `${Math.round(p1Spec.grip * 100)}% GRIP`;
+            document.getElementById('p2-grip-badge').textContent = `${Math.round(p2Spec.grip * 100)}% GRIP`;
+            document.getElementById('p1-score').textContent = gameState.p1Score;
+            document.getElementById('p2-score').textContent = gameState.p2Score;
+            document.getElementById('mode-badge').textContent = gameState.mode === '1p' ? '1P vs AI' : '2P PvP';
+
+            updateTurnBanner();
+        }
+
+        function updateTurnBanner() {
+            const headline = document.getElementById('status-headline');
+            const subline = document.getElementById('status-subline');
+            const dot = document.getElementById('turn-indicator-dot');
+            const p1Hud = document.getElementById('p1-hud');
+            const p2Hud = document.getElementById('p2-hud');
+
+            const activeSpec = gameState.turn === 1 ? PEN_ROSTER[gameState.p1PenId] : PEN_ROSTER[gameState.p2PenId];
+
+            if (gameState.turn === 1) {
+                dot.className = 'w-3 h-3 rounded-full bg-blue-600 turn-glow';
+                p1Hud.classList.add('bg-blue-100/75', 'ring-1', 'ring-blue-400');
+                p2Hud.classList.remove('bg-rose-100/75', 'ring-1', 'ring-rose-400');
+            } else {
+                dot.className = 'w-3 h-3 rounded-full bg-rose-600 turn-glow';
+                p2Hud.classList.add('bg-rose-100/75', 'ring-1', 'ring-rose-400');
+                p1Hud.classList.remove('bg-blue-100/75', 'ring-1', 'ring-blue-400');
+            }
+
+            if (gameState.phase === 'AIMING') {
+                const who = gameState.turn === 1 ? 'Player 1' : (gameState.mode === '1p' ? 'AI Opponent' : 'Player 2');
+                headline.textContent = `${who}'s Turn • ${activeSpec.name} (${activeSpec.mass.toFixed(1)}g)`;
+                subline.textContent = `${activeSpec.idleDesc} — Drag Tip/Cap for Whip Spin, Center for Ram`;
+            } else if (gameState.phase === 'AI_THINKING') {
+                headline.textContent = `AI Lining Up Shot (${activeSpec.name})...`;
+                subline.textContent = `Calculating contact lever-arm & dry friction skid distance`;
+            } else if (gameState.phase === 'MOVING') {
+                headline.textContent = `Tabletop Clash in Motion!`;
+                subline.textContent = `Dry Coulomb wood friction decelerating pens...`;
+            }
+        }
+
+        /***********************************************************************
+         * 14. UI EVENT BINDINGS
+         ***********************************************************************/
+        document.getElementById('slot-p1').addEventListener('click', () => {
+            sfx.playUI(480, 0.04);
+            gameState.editingSlot = 1;
+            updateModalSlotHeaders();
+            renderRosterCards();
+        });
+
+        document.getElementById('slot-p2').addEventListener('click', () => {
+            sfx.playUI(480, 0.04);
+            gameState.editingSlot = 2;
+            updateModalSlotHeaders();
+            renderRosterCards();
+        });
+
+        document.getElementById('mode-1p').addEventListener('click', () => {
+            sfx.playUI(540, 0.05);
+            gameState.mode = '1p';
+            document.getElementById('mode-1p').className = 'px-4 py-1.5 rounded-full text-xs font-bold bg-md-primary text-white transition-all flex items-center gap-1.5';
+            document.getElementById('mode-2p').className = 'px-4 py-1.5 rounded-full text-xs font-bold text-md-secondary hover:text-[#1D1B20] transition-all flex items-center gap-1.5';
+            document.getElementById('slot-p2-label').textContent = 'Player 2 / AI (Red Corner)';
+            updateHUDLabels();
+        });
+
+        document.getElementById('mode-2p').addEventListener('click', () => {
+            sfx.playUI(540, 0.05);
+            gameState.mode = '2p';
+            document.getElementById('mode-2p').className = 'px-4 py-1.5 rounded-full text-xs font-bold bg-md-primary text-white transition-all flex items-center gap-1.5';
+            document.getElementById('mode-1p').className = 'px-4 py-1.5 rounded-full text-xs font-bold text-md-secondary hover:text-[#1D1B20] transition-all flex items-center gap-1.5';
+            document.getElementById('slot-p2-label').textContent = 'Player 2 (Red Corner)';
+            updateHUDLabels();
+        });
+
+        document.getElementById('btn-start-match').addEventListener('click', () => {
+            sfx.playUI(680, 0.07);
+            document.getElementById('loadout-modal').classList.add('hidden');
+            resetRound(1);
+        });
+
+        document.getElementById('btn-open-loadout').addEventListener('click', () => {
+            sfx.playUI(500, 0.05);
+            document.getElementById('loadout-modal').classList.remove('hidden');
+            renderRosterCards();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            sfx.playUI(440, 0.06);
+            renderCleanDeskSurface();
+            resetRound(1);
+        });
+
+        document.getElementById('btn-sound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('sound-icon').textContent = sfx.enabled ? 'volume_up' : 'volume_off';
+            if (sfx.enabled) sfx.playUI(600, 0.05);
+        });
+
+        function setCameraMode(mode) {
+            gameState.cameraMode = mode;
+            document.querySelectorAll('.cam-chip').forEach(btn => {
+                if (btn.dataset.cam === mode) {
+                    btn.className = 'cam-chip md3-chip px-3 py-1 rounded-full text-xs font-bold bg-md-primary text-white';
+                } else {
+                    btn.className = 'cam-chip md3-chip px-3 py-1 rounded-full text-xs font-bold text-md-secondary hover:bg-md-surfaceHigh';
+                }
+            });
+        }
+
+        document.querySelectorAll('.cam-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                sfx.playUI(560, 0.04);
+                setCameraMode(btn.dataset.cam);
+            });
+        });
+
+        document.getElementById('btn-camera').addEventListener('click', () => {
+            sfx.playUI(560, 0.04);
+            const order = ['perspective', 'top', 'action'];
+            const next = order[(order.indexOf(gameState.cameraMode) + 1) % order.length];
+            setCameraMode(next);
+        });
+
+        document.getElementById('btn-rematch').addEventListener('click', () => {
+            sfx.playUI(660, 0.06);
+            document.getElementById('ko-modal').classList.add('hidden');
+            document.getElementById('ko-modal').classList.remove('flex');
+            resetRound(1);
+        });
+
+        document.getElementById('btn-change-pens-ko').addEventListener('click', () => {
+            sfx.playUI(520, 0.05);
+            document.getElementById('ko-modal').classList.add('hidden');
+            document.getElementById('ko-modal').classList.remove('flex');
+            document.getElementById('loadout-modal').classList.remove('hidden');
+            renderRosterCards();
+        });
+
+        function resetRound(startingTurn = 1) {
+            if (!pen1 || !pen2) spawnPens();
+            pen1.resetToCorner();
+            pen2.resetToCorner();
+            gameState.turn = startingTurn;
+            gameState.phase = 'AIMING';
+            gameState.settleTimer = 0;
+            camSpherical.theta = startingTurn === 1 ? 0 : Math.PI;
+            updateHUDLabels();
+        }
+
+        /***********************************************************************
+         * 15. KNOCKOUT DETECTION & TURN RESOLUTION
+         ***********************************************************************/
+        function checkKnockoutsAndSettle(dt) {
+            if (!pen1 || !pen2 || gameState.phase === 'ROUND_OVER') return;
+
+            document.getElementById('p1-stability-bar').style.width = `${pen1.getEdgeSafetyPercent()}%`;
+            document.getElementById('p2-stability-bar').style.width = `${pen2.getEdgeSafetyPercent()}%`;
+
+            const p1Out = pen1.y < -1.35;
+            const p2Out = pen2.y < -1.35;
+
+            if (p1Out || p2Out) {
+                gameState.phase = 'ROUND_OVER';
+                sfx.playRingOut();
+
+                const koModal = document.getElementById('ko-modal');
+                const title = document.getElementById('ko-title');
+                const desc = document.getElementById('ko-desc');
+                const sub = document.getElementById('ko-subtitle');
+
+                const p1Name = PEN_ROSTER[gameState.p1PenId].name;
+                const p2Name = PEN_ROSTER[gameState.p2PenId].name;
+
+                if (p1Out && p2Out) {
+                    sub.textContent = 'DOUBLE RING-OUT!';
+                    title.textContent = 'Mutual Knockout Draw!';
+                    desc.textContent = `Both ${p1Name} and ${p2Name} went over the desk edge!`;
+                } else if (p2Out) {
+                    gameState.p1Score++;
+                    sub.textContent = 'DESK RING-OUT!';
+                    title.textContent = 'Player 1 Wins Round!';
+                    desc.textContent = `${p1Name} knocked ${p2Name} off the wooden classroom desk!`;
+                } else {
+                    gameState.p2Score++;
+                    sub.textContent = 'DESK RING-OUT!';
+                    title.textContent = gameState.mode === '1p' ? 'AI Wins Round!' : 'Player 2 Wins Round!';
+                    desc.textContent = `${p2Name} sent ${p1Name} tumbling over the tabletop edge!`;
+                }
+
+                updateHUDLabels();
+                koModal.classList.remove('hidden');
+                koModal.classList.add('flex');
+                return;
+            }
+
+            if (gameState.phase === 'MOVING') {
+                // Only settle once both pens have stopped sliding on the table (and neither is mid-fall)
+                const anyFalling = pen1.isFalling3D || pen2.isFalling3D;
+                const totalMotion = pen1.getSpeed() + pen2.getSpeed();
+
+                if (!anyFalling && totalMotion < 0.06) {
+                    gameState.settleTimer += dt;
+                    if (gameState.settleTimer > 0.25) {
+                        gameState.turn = gameState.turn === 1 ? 2 : 1;
+                        gameState.phase = 'AIMING';
+                        gameState.settleTimer = 0;
+
+                        if (gameState.mode === '1p' && gameState.turn === 2) {
+                            triggerAITurn();
+                        } else {
+                            updateTurnBanner();
+                        }
+                    }
+                } else {
+                    gameState.settleTimer = 0;
+                }
+            }
+        }
+
+        /***********************************************************************
+         * 16. MAIN 12-SUBSTEP RIGID-BODY SIMULATION & RENDER LOOP
+         ***********************************************************************/
+        let lastTime = performance.now();
+
+        function updateCamera() {
+            if (!pen1 || !pen2) return;
+
+            if (gameState.cameraMode === 'top') {
+                const desiredPos = new THREE.Vector3(0, 17.5, 0.01);
+                camera.position.lerp(desiredPos, 0.09);
+                cameraTarget.lerp(new THREE.Vector3(0, 0, 0), 0.12);
+                camera.lookAt(cameraTarget);
+            } else if (gameState.cameraMode === 'action') {
+                const active = getActivePen();
+                const other = gameState.turn === 1 ? pen2 : pen1;
+                const mid = new THREE.Vector3().addVectors(active.mesh.position, other.mesh.position).multiplyScalar(0.5);
+                const backDir = new THREE.Vector3().subVectors(active.mesh.position, other.mesh.position).normalize();
+                const desiredCam = active.mesh.position.clone().addScaledVector(backDir, 5.2).add(new THREE.Vector3(0, 3.8, 0));
+
+                camera.position.lerp(desiredCam, 0.08);
+                cameraTarget.lerp(mid, 0.12);
+                camera.lookAt(cameraTarget);
+            } else {
+                const x = camSpherical.radius * Math.sin(camSpherical.phi) * Math.sin(camSpherical.theta);
+                const y = camSpherical.radius * Math.cos(camSpherical.phi);
+                const z = camSpherical.radius * Math.sin(camSpherical.phi) * Math.cos(camSpherical.theta);
+                const desiredPos = new THREE.Vector3(x, y, z);
+
+                camera.position.lerp(desiredPos, 0.12);
+                cameraTarget.lerp(new THREE.Vector3(0, 0, 0), 0.12);
+                camera.lookAt(cameraTarget);
+            }
+
+            if (cameraShake > 0.002) {
+                camera.position.x += (Math.random() - 0.5) * cameraShake;
+                camera.position.y += (Math.random() - 0.5) * cameraShake;
+                cameraShake *= 0.84;
+            }
+        }
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+
+            const rawDt = Math.min(0.04, (now - lastTime) / 1000);
+            lastTime = now;
+            gameState.activeTime += rawDt;
+
+            // Handle 20ms micro-hitstop on heavy collisions
+            if (gameState.hitstopTimer > 0) {
+                gameState.hitstopTimer = Math.max(0, gameState.hitstopTimer - rawDt);
+                updateCamera();
+                renderer.render(scene, camera);
+                return;
+            }
+
+            // 12 High-Precision Substeps per frame for deterministic segment contact & Coulomb friction
+            const SUBSTEPS = 12;
+            const subDt = rawDt / SUBSTEPS;
+
+            if (pen1 && pen2) {
+                for (let i = 0; i < SUBSTEPS; i++) {
+                    if (pen1.isFalling3D || pen2.isFalling3D) {
+                        world.step(1 / 120, subDt, 1);
+                    }
+                    pen1.stepTabletop(subDt);
+                    pen2.stepTabletop(subDt);
+                    solveRigidPenContact(pen1, pen2);
+                }
+
+                pen1.syncVisuals(gameState.activeTime, gameState.turn === 1);
+                pen2.syncVisuals(gameState.activeTime, gameState.turn === 2);
+                checkKnockoutsAndSettle(rawDt);
+            }
+
+            if (sparkMesh.material.opacity > 0.01) {
+                sparkScale += rawDt * 8.0;
+                sparkMesh.scale.set(sparkScale, sparkScale, sparkScale);
+                sparkMesh.material.opacity *= 0.85;
+            }
+
+            updateCamera();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = function () {
+            updateModalSlotHeaders();
+            renderRosterCards();
+            spawnPens();
+            animate(performance.now());
+        };
+    </script>
+</body>
+</html>
