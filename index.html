@@ -1072,25 +1072,37 @@
                     console.log('[P2P Host] Client connected:', conn.peer);
                     this.connections.set(conn.peer, conn);
 
-                    // Assign player to next open slot
-                    const openSlot = gameState.players.find(p => p.isAI || p.peerId === null);
+                    // Slot 0 is strictly reserved for the Host!
+                    // Find next open human slot for remote client (slots 1, 2, 3...)
+                    let openSlot = gameState.players.find(p => p.id > 0 && p.peerId === null);
+                    if (!openSlot) {
+                        // Check if an AI bot slot can be converted to human
+                        openSlot = gameState.players.find(p => p.id > 0 && p.isAI);
+                    }
+
                     if (openSlot) {
                         openSlot.isAI = false;
                         openSlot.peerId = conn.peer;
                         openSlot.name = `Player ${openSlot.id + 1}`;
+
+                        // Send welcome with their distinct assignedId
+                        conn.send({
+                            type: 'init_welcome',
+                            roomCode: this.roomCode,
+                            assignedId: openSlot.id,
+                            gameState: exportLobbyState()
+                        });
+
+                        broadcastLobbyState();
+                        renderLobbyPlayerCards();
+                        updateMultiPenHUD();
+                    } else {
+                        conn.send({
+                            type: 'room_full',
+                            message: 'Room is already full!'
+                        });
+                        conn.close();
                     }
-
-                    // Welcome client with initial lobby & roster state
-                    conn.send({
-                        type: 'init_welcome',
-                        roomCode: this.roomCode,
-                        assignedId: openSlot ? openSlot.id : -1,
-                        gameState: exportLobbyState()
-                    });
-
-                    broadcastLobbyState();
-                    renderLobbyPlayerCards();
-                    updateMultiPenHUD();
                 });
 
                 conn.on('data', (data) => {
@@ -1101,14 +1113,14 @@
                     console.log('[P2P Host] Client disconnected:', conn.peer);
                     this.connections.delete(conn.peer);
                     const slot = gameState.players.find(p => p.peerId === conn.peer);
-                    if (slot) {
+                    if (slot && slot.id > 0) {
                         slot.isAI = true;
                         slot.peerId = null;
                         slot.name = `Bot ${slot.id + 1}`;
+                        broadcastLobbyState();
+                        renderLobbyPlayerCards();
+                        updateMultiPenHUD();
                     }
-                    broadcastLobbyState();
-                    renderLobbyPlayerCards();
-                    updateMultiPenHUD();
                 });
             }
 
@@ -1235,11 +1247,13 @@
                 switch (data.type) {
                     case 'init_welcome': {
                         gameState.localPlayerId = data.assignedId;
+                        gameState.editingSlot = data.assignedId;
                         gameState.matchMode = data.gameState.matchMode;
                         gameState.bestOf = data.gameState.bestOf;
                         gameState.penCount = data.gameState.penCount;
                         gameState.players = data.gameState.players;
                         spawnPens();
+                        renderLobbyPlayerCards();
                         updateMultiPenHUD();
                         break;
                     }
@@ -1250,6 +1264,41 @@
                         gameState.penCount = data.penCount;
                         renderLobbyPlayerCards();
                         updateMultiPenHUD();
+                        break;
+                    }
+                    case 'game_start': {
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                        document.getElementById('multiplayer-modal').classList.remove('flex');
+                        gameState.players = data.gameState.players;
+                        gameState.matchMode = data.gameState.matchMode;
+                        gameState.bestOf = data.gameState.bestOf;
+                        gameState.penCount = data.gameState.penCount;
+                        spawnPens();
+                        resetRound(true);
+                        break;
+                    }
+                    case 'round_reset': {
+                        document.getElementById('ko-modal').classList.add('hidden');
+                        document.getElementById('ko-modal').classList.remove('flex');
+                        if (data.players) gameState.players = data.players;
+                        resetRound(data.resetScores);
+                        break;
+                    }
+                    case 'pen_eliminated': {
+                        const p = pens[data.playerIndex];
+                        if (p) {
+                            p.isEliminated = true;
+                            p.isFalling3D = false;
+                            const pill = document.getElementById(`player-pill-${data.playerIndex}`);
+                            if (pill) pill.classList.add('opacity-40', 'line-through');
+                        }
+                        updateMultiPenHUD();
+                        break;
+                    }
+                    case 'room_full': {
+                        alert(data.message || 'Room is already full!');
+                        document.getElementById('join-status-message').textContent = 'Room is full!';
+                        document.getElementById('join-status-message').className = 'text-center text-xs font-bold py-2 rounded-xl bg-rose-50 text-rose-800 border border-rose-200';
                         break;
                     }
                     case 'aim_update': {
@@ -1283,6 +1332,7 @@
                     case 'turn_change': {
                         gameState.activePlayerIndex = data.activePlayerIndex;
                         gameState.phase = data.phase;
+                        updateMultiPenHUD();
                         updateTurnBanner();
                         break;
                     }
@@ -2270,25 +2320,42 @@
                 e.target.closest('#ko-modal') || e.target.closest('#quick-emote-bar')) return;
 
             const { clientX, clientY } = updatePointerCoords(e);
-            const activePen = getActivePen();
+            
+            // In online mode, you strictly own pen [gameState.localPlayerId].
+            // In local offline mode, active pen follows active turn.
+            const mySlotId = net.isConnected ? gameState.localPlayerId : gameState.activePlayerIndex;
+            const myPen = pens[mySlotId];
 
-            if (isMyTurn() && activePen && !activePen.isFalling3D && !activePen.isEliminated) {
+            if (isMyTurn() && myPen && !myPen.isFalling3D && !myPen.isEliminated) {
                 raycaster.setFromCamera(pointer, camera);
-                const hits = raycaster.intersectObject(activePen.visualGroup, true);
 
+                // Disallow clicking directly on other players' pens
+                let clickedOpponent = false;
+                pens.forEach((p, idx) => {
+                    if (idx !== mySlotId && !p.isEliminated && raycaster.intersectObject(p.visualGroup, true).length > 0) {
+                        clickedOpponent = true;
+                    }
+                });
+
+                if (clickedOpponent) {
+                    showImpactTelemetryToast('THAT IS NOT YOUR PEN!', 0, myPen.spec.brand, 0);
+                    return;
+                }
+
+                const hits = raycaster.intersectObject(myPen.visualGroup, true);
                 const planeHit = new THREE.Vector3();
                 raycaster.ray.intersectPlane(deskPlane, planeHit);
 
-                if (hits.length > 0 || (planeHit && planeHit.distanceTo(activePen.mesh.position) < activePen.spec.length * 0.70)) {
+                if (hits.length > 0 || (planeHit && planeHit.distanceTo(myPen.mesh.position) < myPen.spec.length * 0.70)) {
                     isDraggingPen = true;
                     strikeWorldPoint.copy(hits.length > 0 ? hits[0].point : planeHit);
 
-                    const localPt = activePen.mesh.worldToLocal(strikeWorldPoint.clone());
-                    const halfL = activePen.spec.length * 0.5;
+                    const localPt = myPen.mesh.worldToLocal(strikeWorldPoint.clone());
+                    const halfL = myPen.spec.length * 0.5;
                     strikeLocalOffset = Math.max(-1, Math.min(1, localPt.x / halfL));
 
                     const snappedLocal = new THREE.Vector3(strikeLocalOffset * halfL * 0.92, 0.12, 0);
-                    strikeWorldPoint.copy(activePen.mesh.localToWorld(snappedLocal));
+                    strikeWorldPoint.copy(myPen.mesh.localToWorld(snappedLocal));
                     currentDragPoint.copy(strikeWorldPoint);
 
                     aimGroup.visible = true;
@@ -2296,6 +2363,14 @@
                     sfx.playUI(620, 0.04);
                     updateAimVisuals();
                     return;
+                }
+            } else if (net.isConnected && gameState.activePlayerIndex !== gameState.localPlayerId) {
+                // If user clicks while it is someone else's turn, inform them!
+                raycaster.setFromCamera(pointer, camera);
+                const hitAnyPen = pens.some(p => raycaster.intersectObject(p.visualGroup, true).length > 0);
+                if (hitAnyPen) {
+                    const activeP = gameState.players[gameState.activePlayerIndex];
+                    showImpactTelemetryToast('WAIT FOR YOUR TURN', 0, activeP ? activeP.name : 'Opponent', 0);
                 }
             }
 
@@ -2340,11 +2415,12 @@
                 aimGroup.visible = false;
                 document.getElementById('aim-telemetry').classList.add('hidden');
 
-                const activePen = getActivePen();
+                const mySlotId = net.isConnected ? gameState.localPlayerId : gameState.activePlayerIndex;
+                const myPen = pens[mySlotId];
                 const dragVec = new THREE.Vector3().subVectors(strikeWorldPoint, currentDragPoint);
                 dragVec.y = 0;
 
-                if (dragVec.length() > 0.28 && activePen) {
+                if (dragVec.length() > 0.28 && myPen) {
                     if (net.isConnected && !net.isHost) {
                         // Client sends flick to host
                         net.sendToAll({
@@ -2356,7 +2432,7 @@
                         });
                     } else {
                         // Host or local offline
-                        executeRigidFlick(activePen, dragVec, strikeLocalOffset, false);
+                        executeRigidFlick(myPen, dragVec, strikeLocalOffset, false);
                     }
                 }
             }
@@ -2542,11 +2618,19 @@
          ***********************************************************************/
         function advanceToNextTurn() {
             const N = gameState.players.length;
+            const alivePens = pens.filter(p => !p.isEliminated);
+
+            // If 1 or 0 survivors remain, round is finished!
+            if (alivePens.length <= 1) {
+                const winnerIdx = alivePens.length === 1 ? alivePens[0].playerIndex : -1;
+                resolveRoundOutcome(winnerIdx, alivePens.length === 1);
+                return;
+            }
+
+            // Find next surviving pen (strictly skip eliminated pens!)
             let nextIndex = (gameState.activePlayerIndex + 1) % N;
             let attempts = 0;
-
-            // Find next surviving pen
-            while (pens[nextIndex] && pens[nextIndex].isEliminated && attempts < N) {
+            while (pens[nextIndex] && pens[nextIndex].isEliminated && attempts < N * 2) {
                 nextIndex = (nextIndex + 1) % N;
                 attempts++;
             }
@@ -2555,15 +2639,17 @@
             gameState.phase = 'AIMING';
             gameState.settleTimer = 0;
 
-            const nextPlayer = gameState.players[nextIndex];
             if (net.isHost && net.isConnected) {
                 net.sendToAll({
                     type: 'turn_change',
                     activePlayerIndex: gameState.activePlayerIndex,
-                    phase: gameState.phase
+                    phase: 'AIMING'
                 });
             }
 
+            updateMultiPenHUD();
+
+            const nextPlayer = gameState.players[nextIndex];
             if (nextPlayer && nextPlayer.isAI) {
                 triggerAITurn();
             } else {
@@ -2574,49 +2660,52 @@
         function checkKnockoutsAndSettle(dt) {
             if (gameState.phase === 'ROUND_OVER' || gameState.phase === 'MATCH_OVER') return;
 
-            // Check edge stability & ring-outs for each pen
-            let activeSurvivors = 0;
-            let lastSurvivorIndex = -1;
-
+            // 1. Check edge stability and ring-out conditions for each pen
             pens.forEach((p, idx) => {
                 const stabBar = document.getElementById(`stability-bar-${idx}`);
                 if (stabBar) {
                     stabBar.style.width = `${p.getEdgeSafetyPercent()}%`;
                 }
 
-                if (!p.isEliminated && p.y < -1.40) {
+                // If pen crossed the edge and fell below desk or tumbled far out
+                if (!p.isEliminated && (p.y < -0.70 || Math.abs(p.x) > DESK_WIDTH * 0.58 || Math.abs(p.z) > DESK_DEPTH * 0.58)) {
                     p.isEliminated = true;
+                    p.isFalling3D = false; // Never block settling once marked dead!
                     sfx.playRingOut();
                     triggerImpactSpark(p.x, 0.2, p.z, 9.0);
                     showImpactTelemetryToast('DESK RING-OUT!', 35, p.spec.brand, 0);
 
                     const pill = document.getElementById(`player-pill-${idx}`);
                     if (pill) pill.classList.add('opacity-40', 'line-through');
-                }
 
-                if (!p.isEliminated) {
-                    activeSurvivors++;
-                    lastSurvivorIndex = idx;
+                    if (net.isHost && net.isConnected) {
+                        net.sendToAll({
+                            type: 'pen_eliminated',
+                            playerIndex: idx
+                        });
+                    }
                 }
             });
 
-            // Round resolution: In multi-pen, round ends when 1 or 0 survivors remain!
-            if (activeSurvivors <= 1 && gameState.phase === 'MOVING') {
-                const totalMotion = pens.reduce((acc, p) => acc + p.getSpeed(), 0);
-                if (totalMotion < 0.12) {
-                    resolveRoundOutcome(lastSurvivorIndex, activeSurvivors === 1);
+            // 2. Count surviving pens on the table
+            const alivePens = pens.filter(p => !p.isEliminated);
+            const anyAliveFalling = alivePens.some(p => p.isFalling3D);
+            const totalAliveMotion = alivePens.reduce((sum, p) => sum + p.getSpeed(), 0);
+
+            // 3. Multi-pen victory resolution: when 1 or 0 survivors remain on table
+            if (alivePens.length <= 1 && gameState.phase === 'MOVING') {
+                if (totalAliveMotion < 0.12 && !anyAliveFalling) {
+                    const winnerIdx = alivePens.length === 1 ? alivePens[0].playerIndex : -1;
+                    resolveRoundOutcome(winnerIdx, alivePens.length === 1);
                     return;
                 }
             }
 
-            // Settle turn motion when all pens have come to rest
+            // 4. Normal turn settling between rounds while 2 or more pens survive
             if (gameState.phase === 'MOVING') {
-                const anyFalling = pens.some(p => p.isFalling3D);
-                const totalMotion = pens.reduce((acc, p) => acc + (p.isEliminated ? 0 : p.getSpeed()), 0);
-
-                if (!anyFalling && totalMotion < 0.07) {
+                if (!anyAliveFalling && totalAliveMotion < 0.08) {
                     gameState.settleTimer += dt;
-                    if (gameState.settleTimer > 0.28) {
+                    if (gameState.settleTimer > 0.25) {
                         advanceToNextTurn();
                     }
                 } else {
@@ -2952,6 +3041,7 @@
          ***********************************************************************/
         function updateMultiPenHUD() {
             const hud = document.getElementById('multi-pen-hud');
+            if (!hud) return;
             hud.innerHTML = '';
 
             gameState.players.forEach((p, idx) => {
@@ -2959,6 +3049,8 @@
                 const isActive = gameState.activePlayerIndex === idx;
                 const isEliminated = pen ? pen.isEliminated : false;
                 const spec = PEN_ROSTER[p.penId] || PEN_ROSTER.parker;
+                const isMe = p.id === gameState.localPlayerId;
+                const isHost = p.id === 0;
 
                 const item = document.createElement('div');
                 item.id = `player-pill-${idx}`;
@@ -2971,6 +3063,9 @@
                     <div class="text-left leading-tight">
                         <div class="flex items-center gap-1">
                             <span class="font-extrabold text-[#1D1B20] text-[11px]">${p.name}</span>
+                            ${isHost ? '<span class="text-[10px]" title="Host">👑</span>' : ''}
+                            ${isMe ? '<span class="text-[9px] font-bold bg-amber-200 text-amber-900 px-1 rounded">YOU</span>' : ''}
+                            ${isEliminated ? '<span class="text-[9px] font-bold bg-rose-200 text-rose-800 px-1 rounded">OUT</span>' : ''}
                             <span class="text-[9px] font-mono bg-slate-200 text-slate-800 px-1 rounded">${spec.mass.toFixed(1)}g</span>
                             <span class="text-[10px] font-mono font-bold bg-md-primary text-white px-1.5 rounded">${p.score}</span>
                         </div>
@@ -2983,8 +3078,10 @@
                 hud.appendChild(item);
             });
 
-            document.getElementById('mode-badge').textContent = `${gameState.matchMode.toUpperCase()} • ${gameState.players.length} PENS`;
-            document.getElementById('series-badge').textContent = `Best of ${gameState.bestOf}`;
+            const modeBadge = document.getElementById('mode-badge');
+            if (modeBadge) modeBadge.textContent = `${gameState.matchMode.toUpperCase()} • ${gameState.players.length} PENS`;
+            const seriesBadge = document.getElementById('series-badge');
+            if (seriesBadge) seriesBadge.textContent = `Best of ${gameState.bestOf}`;
             updateTurnBanner();
         }
 
@@ -2992,6 +3089,7 @@
             const headline = document.getElementById('status-headline');
             const subline = document.getElementById('status-subline');
             const dot = document.getElementById('turn-indicator-dot');
+            if (!headline || !subline || !dot) return;
 
             const activePlayer = gameState.players[gameState.activePlayerIndex];
             if (!activePlayer) return;
@@ -3001,14 +3099,25 @@
 
             if (gameState.phase === 'AIMING') {
                 const isMe = activePlayer.id === gameState.localPlayerId;
-                headline.textContent = `${activePlayer.name}'s Turn • ${activeSpec.name} (${activeSpec.mass.toFixed(1)}g)`;
-                subline.textContent = isMe ? 'Drag directly on your pen: Tip/Cap = Whip Spin, Center = Heavy Ram' : `Waiting for ${activePlayer.name} to flick...`;
+                if (isMe) {
+                    headline.textContent = `⚡ YOUR TURN! • ${activePlayer.name} (${activeSpec.name})`;
+                    subline.textContent = 'Drag directly on your pen to strike! (Tip/Cap = Whip Spin, Center = Heavy Ram)';
+                } else {
+                    headline.textContent = `${activePlayer.name}'s Turn • ${activeSpec.name} (${activeSpec.mass.toFixed(1)}g)`;
+                    subline.textContent = `Waiting for ${activePlayer.name} to strike...`;
+                }
             } else if (gameState.phase === 'AI_THINKING') {
                 headline.textContent = `Bot Thinking (${activePlayer.name})...`;
                 subline.textContent = 'Calculating optimal contact angle and Coulomb friction skid...';
             } else if (gameState.phase === 'MOVING') {
                 headline.textContent = 'Tabletop Clash in Motion!';
                 subline.textContent = 'Dry Coulomb wood friction decelerating pens...';
+            } else if (gameState.phase === 'ROUND_OVER') {
+                headline.textContent = 'Round Finished!';
+                subline.textContent = 'Calculating survivor points...';
+            } else if (gameState.phase === 'MATCH_OVER') {
+                headline.textContent = '🏆 Match Champion Decided!';
+                subline.textContent = 'Check tournament/series results!';
             }
         }
 
@@ -3136,21 +3245,25 @@
         function initializeRoster(count = 4) {
             gameState.players = [];
             const penArchetypeKeys = Object.keys(PEN_ROSTER);
+            const hostInput = document.getElementById('host-player-name');
+            const hostName = (hostInput && hostInput.value.trim()) ? hostInput.value.trim() : 'Host (You)';
 
             for (let i = 0; i < count; i++) {
                 const isLocalMe = i === 0;
                 const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
                 gameState.players.push({
                     id: i,
-                    name: isLocalMe ? 'You' : `Player ${i + 1}`,
+                    name: isLocalMe ? hostName : `Player ${i + 1}`,
                     penId: penArchetypeKeys[i % penArchetypeKeys.length],
                     color: color.hex,
                     isAI: !isLocalMe,
                     score: 0,
-                    peerId: null
+                    peerId: isLocalMe ? 'HOST' : null
                 });
             }
 
+            gameState.localPlayerId = 0;
+            gameState.editingSlot = 0;
             spawnPens();
             renderLoadoutSlotPills();
             renderRosterCards();
@@ -3190,17 +3303,22 @@
         document.getElementById('btn-create-room').addEventListener('click', () => {
             sfx.playUI(640, 0.07);
             const name = document.getElementById('host-player-name').value.trim() || 'Host Player';
-            gameState.players[0].name = name;
             gameState.matchMode = document.getElementById('host-match-mode').value;
             gameState.penCount = parseInt(document.getElementById('host-pen-count').value);
             gameState.bestOf = parseInt(document.getElementById('host-series-format').value);
 
             initializeRoster(gameState.penCount);
+            gameState.players[0].name = name;
+            gameState.players[0].isAI = false;
+            gameState.players[0].peerId = 'HOST';
+            gameState.localPlayerId = 0;
+
             net.initHost();
 
             document.getElementById('host-setup-panel').classList.add('hidden');
             document.getElementById('host-room-active').classList.remove('hidden');
             renderLobbyPlayerCards();
+            updateMultiPenHUD();
         });
 
         document.getElementById('btn-copy-code').addEventListener('click', () => {
@@ -3245,8 +3363,33 @@
             sfx.playUI(680, 0.08);
             document.getElementById('multiplayer-modal').classList.add('hidden');
             document.getElementById('multiplayer-modal').classList.remove('flex');
+
+            if (net.isHost) {
+                net.sendToAll({
+                    type: 'game_start',
+                    gameState: exportLobbyState()
+                });
+            }
+
             resetRound(true);
         });
+
+        // Fill empty slots with bots
+        const fillAiBtn = document.getElementById('btn-fill-ai');
+        if (fillAiBtn) {
+            fillAiBtn.addEventListener('click', () => {
+                sfx.playUI(540, 0.05);
+                gameState.players.forEach((p, idx) => {
+                    if (idx > 0 && p.peerId === null) {
+                        p.isAI = true;
+                        p.name = `Bot ${idx + 1}`;
+                    }
+                });
+                if (net.isHost) broadcastLobbyState();
+                renderLobbyPlayerCards();
+                updateMultiPenHUD();
+            });
+        }
 
         // Tournament Modal
         document.getElementById('btn-open-tournament').addEventListener('click', () => {
@@ -3332,10 +3475,16 @@
         // KO Modal Rematch
         document.getElementById('btn-rematch').addEventListener('click', () => {
             sfx.playUI(600, 0.05);
-            if (gameState.phase === 'MATCH_OVER') {
-                resetRound(true);
-            } else {
-                resetRound(false);
+            const resetScores = gameState.phase === 'MATCH_OVER';
+            resetRound(resetScores);
+
+            if (net.isHost) {
+                net.sendToAll({
+                    type: 'round_reset',
+                    resetScores: resetScores,
+                    players: gameState.players,
+                    roundNumber: gameState.roundNumber
+                });
             }
         });
 
