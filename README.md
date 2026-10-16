@@ -1,78 +1,81 @@
-# Pen Fight 3D — Online Multiplayer & Tournament Tabletop Arena
+# Gyan Games Studio — Online WebRTC Multiplayer Arcade
 
-A real-time 3D rigid-body tabletop pen fight arena built with **Three.js**, **Cannon.js**, and **PeerJS WebRTC**.
+A serverless peer-to-peer multiplayer web gaming studio featuring classic schoolyard and tabletop games, built with **Three.js**, **Cannon.js**, **PeerJS WebRTC**, and **Pure CSS Hand Animations**.
 
----
-
-## 🌟 What's New
-
-### 1. 🌐 Serverless Online Multiplayer (Room Codes & QR Sharing)
-* **P2P WebRTC Multiplayer**: Connect directly with friends across different devices (phones, tablets, laptops, PCs) without requiring any dedicated game servers!
-* **Easy Room Codes**: Host creates a room and gets a 4-character code (e.g. `PF-7294`).
-* **1-Tap Share Link & QR Code**: Friends can scan the live QR code with their mobile cameras or click the auto-generated link (`https://gyan-games.vercel.app/?room=PF-7294`) to jump right into the lobby.
-* **Deterministic Synchronization**: Turn-based live drag vector sharing and high-frequency (30Hz) authoritative state sync ensure zero desync, even across diverse devices and network connections.
+Live Production Site: **[https://gyan-games.vercel.app](https://gyan-games.vercel.app)**
 
 ---
 
-### 2. 🤼 Multi-Pen Arena (2 to 6 Pens on Desk)
-* **Desk Rumble Chaos**: Fight with **2, 3, 4, 5, or 6 pens simultaneously** on the classroom wooden desk!
-* **Symmetric Spawn Formations**: Pens spawn around the arena perimeter facing inward (Duel, Triangle, Cross, Pentagon, Hexagon).
-* **Pairwise Rigid-Body Impulse Solver**: Exact 12-substep line-segment contact solver resolves simultaneous impacts, multi-pen chain collisions, and true Coulomb dry friction skids.
-* **Quick HUD Toggle**: Click the **`4 Pens ▾`** pill in the top HUD anytime to cycle between 2, 3, 4, 5, and 6 active pens on the fly!
-* **Surviving Pen Turn Cycle**: When a pen is knocked off the desk edge into a 3D Cannon.js tumble, it is eliminated for that round, and turns rotate among remaining survivors until only 1 pen stands!
+## 🎮 Included Games
+
+### 1. 🖊️ Pen Fight 3D (`pen-fight.html`)
+* **Real-time 3D Tabletop Physics**: Rigid-body Cannon.js edge tumbles and dry Coulomb wood friction.
+* **Multi-Pen Arena**: 2 to 6 pens on desk simultaneously (Free-For-All Rumble).
+* **8 Authentic Pen Archetypes**: VRT Mod, Parker Vector, Hauser XO, Reynolds 045, Linc Pentonic, Nataraj 621, Cello Gripper, Monami 153.
+* **Tournament System**: 4-player and 8-player bracket cups, plus "Best of 1, 3, 5, 7" formats.
+* **Strict Pen Ownership**: Dedicated device-slot mapping with zero turn conflicts.
 
 ---
 
-### 3. 🏆 Tournament Bracket & "Best of _" System
-* **"Best of _" Series Engine**:
-  * Select **Best of 1**, **Best of 3**, **Best of 5**, or **Best of 7** directly from the top HUD or lobby.
-  * Live round-win tracker with golden stars (★ ★ ☆).
-* **Single-Elimination Tournament Knockout**:
-  * Host a **4-Player** or **8-Player** Knockout Cup!
-  * Visual interactive Tournament Bracket tree (Quarterfinals → Semifinals → Championship Grand Final).
-  * Automatically seeds contestants, highlights active live duels, advances winners, and crowns the Ultimate Tournament Champion with golden trophies and canvas confetti!
-* **Spectator Mode**: Non-participating tournament players can spectate live matches with multi-angle cameras (3D Orbit, Top Desk, Action Cam, Pen Follow).
+### 2. ✂️ Rock Paper Scissors (`rps.html`)
+* **Pure CSS Hand Gestures**: Beautiful vector-smooth CSS hands for Rock, Paper, and Scissors.
+* **Instant Resolution (Zero Countdown)**: As soon as both players lock in their gesture, the clash resolves immediately with dynamic throw bounce animations.
+* **Match Modes**: Best of 1, Best of 3, Best of 5, Best of 7, and Single-Elimination Knockout Tournaments.
+* **WebRTC Multiplayer & Smart Bot**: Duel remote friends via room codes or practice against an adaptive bot.
 
 ---
 
-### 4. 🖋️ Expanded 8-Pen Authentic Physics Roster
-Every pen has grounded physical specs (3.1g – 5.0g mass, dry Coulomb friction $\mu$, moment of inertia $I$, and center-of-mass offset):
-
-1. **VRT Tournament Mod (5.0g)**: Heavy symmetric dual-capped mod with metal momentum rings. Highest rotational inertia for spin stabilization.
-2. **Parker Vector Metallix (4.6g)**: Brushed stainless steel barrel. Heavy linear ram with 80% grip anchor.
-3. **Hauser XO (4.1g)**: Matte rubberized grip with 88% knockback resistance.
-4. **Reynolds 045 Fine Carbure (3.5g)**: Iconic blue cap creating signature classroom pivot whip.
-5. **Linc Pentonic (3.3g)**: Sleek charcoal monobody with blistering whip RPM.
-6. **Nataraj 621 Classic (3.1g)**: Hexagonal crimson wood striker with crisp facet bounce and clacks.
-7. **Cello Gripper Pro (3.6g)**: Textured elastic grip ring for agile counter-strikes.
-8. **Monami 153 White (3.2g)**: Classic Korean clicker pen with light hexagonal desk glide.
+### 3. 🏏 Hand Cricket Championship (`hand-cricket.html`)
+* **11 Pure CSS Hand Gestures (0 to 10)**:
+  * `0`: Closed Fist (all fingers tucked)
+  * `1`: Index finger up
+  * `2`: Index + Middle fingers up
+  * `3`: Index + Middle + Ring fingers up
+  * `4`: Index + Middle + Ring + Pinky up (thumb folded)
+  * `5`: All 5 fingers extended open
+  * `6`: Thumb only (fingers folded into fist)
+  * `7`: Thumb + Index up (gun/L-shape)
+  * `8`: Thumb + Index + Middle up
+  * `9`: Thumb + Middle + Ring + Pinky up (index folded down!)
+  * `10`: Thumb + Pinky up (Shaka / Hang Loose)
+* **Game Modes**:
+  * **Crazy Mode (0-10)**:
+    * Range: 0 to 10.
+    * **Successor / Predecessor = OUT!** If bowler throws $N-1$ or $N+1$ of batter's throw (e.g. Batter 5 vs Bowler 4 or 6 $\to$ OUT!).
+    * **Same Number = Multiplier Slam!** Both throw same number $\to$ Runs are multiplied ($N \times N$) and added to total!
+    * **Different Numbers**: Batter adds their thrown number to total score.
+  * **Normal Mode (1-6)**:
+    * Range: 1 to 6.
+    * **Same Number = OUT!**
+    * **Different Numbers**: Batter scores their thrown number.
+* **Instant Ball Resolution**: No countdown timer; delivery executes as soon as both players lock in!
+* **Full Match Flow**: Coin toss (Bat/Bowl selection), 1st and 2nd innings target chasing, scoreboard HUD, and WebRTC multiplayer.
 
 ---
 
-### 5. 💬 Quick Emote Taunts & Synthesized Web Audio
-* Tap the reaction button in the HUD to throw floating 3D emotes above your pen: 🔥 (Fire Shot), ⚡ (Whip Spin), 🎯 (Ram), 💀 (Ring-out), 😂 (Laugh), 👑 (Champion), 🛡️ (Grip Anchor), 🚀 (Rocket Skid)!
-* Web Audio Synthesizer produces authentic plastic/metal contact cracks, dry wood friction skids, finger flick snaps, and victory fanfare without requiring external audio files.
+## 🌐 Universal Room Routing & Quick Join
+* The main landing page (`index.html`) includes an instant room code join bar.
+* Code prefix auto-routing:
+  * `PF-XXXX` $\to$ Automatically launches **Pen Fight 3D** (`pen-fight.html?room=PF-XXXX`)
+  * `RPS-XXXX` $\to$ Automatically launches **Rock Paper Scissors** (`rps.html?room=RPS-XXXX`)
+  * `HC-XXXX` $\to$ Automatically launches **Hand Cricket** (`hand-cricket.html?room=HC-XXXX`)
+* Live QR codes generated in-browser for instant mobile camera joining.
 
 ---
 
-## 🚀 How to Run
+## 🚀 How to Run Locally
 
 ### Option 1: Quick Launch (Windows)
-Double-click [`start_game.bat`](file:///c:/Users/gyanc/OneDrive/Desktop/CodeWorld/AntiGravity/Gyan%20Games%20Studio/start_game.bat). It automatically starts a local server on port 8080 and opens your browser.
+Double-click [`start_game.bat`](file:///c:/Users/gyanc/OneDrive/Desktop/CodeWorld/AntiGravity/Gyan%20Games%20Studio/start_game.bat). It opens the local server and launches your browser.
 
 ### Option 2: Python HTTP Server
 ```bash
 python -m http.server 8080
 ```
-Open `http://localhost:8080` (or `http://<your-lan-ip>:8080` for other devices on the same Wi-Fi).
-
-### Option 3: Double-Click File
-You can also open [`index.html`](file:///c:/Users/gyanc/OneDrive/Desktop/CodeWorld/AntiGravity/Gyan%20Games%20Studio/index.html) directly in any modern browser (Chrome, Edge, Safari, Firefox).
+Open `http://localhost:8080` in your browser.
 
 ---
 
-## 📜 License & Open Source
+## 📜 License
 This project is open-source under the GNU General Public License v3.0.  
-Feel free to play, fork, and contribute!
-
-*Created with passion by GyanXD25 & friends.*
+Created with passion by Progyan & Gyan Games Studio.

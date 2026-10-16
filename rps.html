@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rock Paper Scissors Multi-Tournament | Gyan Games Studio</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        md: {
+                            primary: '#6750A4',
+                            onPrimary: '#FFFFFF',
+                            primaryContainer: '#EADDFF',
+                            onPrimaryContainer: '#21005D',
+                            surface: '#FEF7FF',
+                            surfaceHighest: '#E6E0E9',
+                            outline: '#79747E',
+                            outlineVariant: '#CAC4D0',
+                            secondary: '#625B71',
+                            error: '#B3261E'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Material Symbols & Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- PeerJS & QRCode & Confetti -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .md3-card {
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(121, 116, 126, 0.20);
+        }
+
+        .md3-card-elevated {
+            background: #FFFFFF;
+            box-shadow: 0 4px 24px -2px rgba(33, 0, 93, 0.12), 0 2px 8px -2px rgba(33, 0, 93, 0.08);
+            border: 1px solid rgba(234, 221, 255, 0.6);
+        }
+
+        .turn-glow {
+            animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(103, 80, 164, 0.5); }
+            70% { box-shadow: 0 0 0 14px rgba(103, 80, 164, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(103, 80, 164, 0); }
+        }
+
+        @keyframes handThrow {
+            0% { transform: translateY(0) scale(1); }
+            30% { transform: translateY(-40px) scale(1.1) rotate(-8deg); }
+            60% { transform: translateY(15px) scale(0.96) rotate(4deg); }
+            100% { transform: translateY(0) scale(1) rotate(0deg); }
+        }
+
+        .throw-anim {
+            animation: handThrow 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /***********************************************************************
+         * PURE CSS HAND ENGINE (Rock, Paper, Scissors)
+         ***********************************************************************/
+        .css-hand {
+            position: relative;
+            width: 100px;
+            height: 120px;
+            margin: 0 auto;
+            transform-origin: bottom center;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .css-hand.mini {
+            width: 50px;
+            height: 60px;
+        }
+
+        .hand-palm {
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #fbd2a4, #e8a872);
+            border-radius: 14px 14px 22px 22px;
+            box-shadow: inset -2px -4px 8px rgba(180, 95, 30, 0.25), 0 6px 14px rgba(0, 0, 0, 0.12);
+            z-index: 2;
+        }
+
+        .css-hand.mini .hand-palm {
+            left: 10px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px 8px 12px 12px;
+        }
+
+        .hand-finger {
+            position: absolute;
+            background: linear-gradient(to top, #e8a872 0%, #fbd2a4 70%, #fadab3 100%);
+            border-radius: 9px;
+            box-shadow: inset -1px 0 3px rgba(180, 95, 30, 0.2);
+            transform-origin: bottom center;
+            transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1;
+        }
+
+        /* Fingers dimensions & positions */
+        .finger-index { left: 24px; bottom: 50px; width: 14px; height: 50px; }
+        .finger-middle { left: 40px; bottom: 50px; width: 14px; height: 58px; }
+        .finger-ring { left: 56px; bottom: 50px; width: 14px; height: 52px; }
+        .finger-pinky { left: 72px; bottom: 50px; width: 12px; height: 42px; }
+        .finger-thumb {
+            left: 2px;
+            bottom: 12px;
+            width: 17px;
+            height: 42px;
+            transform-origin: bottom right;
+            transform: rotate(-32deg);
+            z-index: 3;
+            border-radius: 10px;
+        }
+
+        .css-hand.mini .finger-index { left: 12px; bottom: 25px; width: 7px; height: 25px; border-radius: 5px; }
+        .css-hand.mini .finger-middle { left: 20px; bottom: 25px; width: 7px; height: 29px; border-radius: 5px; }
+        .css-hand.mini .finger-ring { left: 28px; bottom: 25px; width: 7px; height: 26px; border-radius: 5px; }
+        .css-hand.mini .finger-pinky { left: 36px; bottom: 25px; width: 6px; height: 21px; border-radius: 5px; }
+        .css-hand.mini .finger-thumb { left: 1px; bottom: 6px; width: 9px; height: 21px; border-radius: 5px; }
+
+        /* GESTURE 1: ROCK (Closed Fist) */
+        .gesture-rock .finger-index,
+        .gesture-rock .finger-middle,
+        .gesture-rock .finger-ring,
+        .gesture-rock .finger-pinky {
+            transform: translateY(28px) scaleY(0.42);
+            border-radius: 12px;
+            z-index: 4;
+            background: linear-gradient(to top, #df9b64, #f4c28f);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+        .gesture-rock .finger-thumb {
+            transform: rotate(45deg) translate(22px, -6px) scale(0.92);
+            z-index: 5;
+        }
+        .css-hand.mini.gesture-rock .finger-index,
+        .css-hand.mini.gesture-rock .finger-middle,
+        .css-hand.mini.gesture-rock .finger-ring,
+        .css-hand.mini.gesture-rock .finger-pinky {
+            transform: translateY(14px) scaleY(0.42);
+        }
+        .css-hand.mini.gesture-rock .finger-thumb {
+            transform: rotate(45deg) translate(11px, -3px) scale(0.92);
+        }
+
+        /* GESTURE 2: PAPER (Open Palm) */
+        .gesture-paper .finger-index { transform: translateY(0) scaleY(1); }
+        .gesture-paper .finger-middle { transform: translateY(0) scaleY(1); }
+        .gesture-paper .finger-ring { transform: translateY(0) scaleY(1); }
+        .gesture-paper .finger-pinky { transform: translateY(0) scaleY(1); }
+        .gesture-paper .finger-thumb { transform: rotate(-38deg) translateY(-2px); }
+
+        /* GESTURE 3: SCISSORS (V-Shape Index & Middle, Ring & Pinky Folded) */
+        .gesture-scissors .finger-index {
+            transform: rotate(-14deg) translateY(0) scaleY(1);
+        }
+        .gesture-scissors .finger-middle {
+            transform: rotate(14deg) translateY(0) scaleY(1);
+        }
+        .gesture-scissors .finger-ring,
+        .gesture-scissors .finger-pinky {
+            transform: translateY(28px) scaleY(0.42);
+            border-radius: 12px;
+            z-index: 4;
+            background: linear-gradient(to top, #df9b64, #f4c28f);
+        }
+        .gesture-scissors .finger-thumb {
+            transform: rotate(42deg) translate(20px, -4px) scale(0.92);
+            z-index: 5;
+        }
+        .css-hand.mini.gesture-scissors .finger-ring,
+        .css-hand.mini.gesture-scissors .finger-pinky {
+            transform: translateY(14px) scaleY(0.42);
+        }
+        .css-hand.mini.gesture-scissors .finger-thumb {
+            transform: rotate(42deg) translate(10px, -2px) scale(0.92);
+        }
+
+        /* Invert opponent hand facing left */
+        .hand-opponent {
+            transform: scaleX(-1);
+        }
+
+        /* Bracket node styling */
+        .bracket-node {
+            position: relative;
+        }
+        .bracket-node::after {
+            content: '';
+            position: absolute;
+            right: -14px;
+            top: 50%;
+            width: 14px;
+            height: 2px;
+            background: #CAC4D0;
+        }
+    </style>
+</head>
+<body class="bg-[#F8F5FB] text-[#1D1B20] min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Top Navigation Header -->
+    <header class="w-full px-4 py-3 bg-white/80 backdrop-blur-md border-b border-md-outlineVariant/40 sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <a href="index.html" class="w-9 h-9 rounded-full bg-md-surfaceHighest hover:bg-md-primary hover:text-white text-md-secondary flex items-center justify-center transition-all shadow-sm" title="Back to Game Hub">
+                    <span class="material-symbols-rounded text-lg">arrow_back</span>
+                </a>
+                <div class="w-9 h-9 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md font-extrabold text-sm">
+                    ✂️
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-extrabold text-sm sm:text-base tracking-tight text-[#1D1B20]">Rock Paper Scissors</h1>
+                        <span id="badge-series" class="text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full cursor-pointer hover:bg-amber-200" title="Click to cycle format">Best of 3 ▾</span>
+                        <span id="badge-mode" class="text-[9px] font-bold uppercase bg-md-primaryContainer text-md-onPrimaryContainer px-2 py-0.5 rounded-full">VS BOT</span>
+                    </div>
+                    <div class="text-[10px] text-md-secondary flex items-center gap-2">
+                        <span id="net-indicator" class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-slate-400" id="net-dot"></span>
+                            <span id="net-label">Solo Practice</span>
+                        </span>
+                        <span id="hud-room-code" class="hidden font-mono font-bold bg-slate-200 text-slate-800 px-1.5 rounded cursor-pointer hover:bg-slate-300" title="Click to copy Room Link">ROOM: ----</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Quick Controls -->
+            <div class="flex items-center gap-1.5">
+                <button id="btn-open-multiplayer" class="px-3.5 py-1.5 rounded-full bg-md-primary text-white text-xs font-bold hover:bg-[#563E91] transition-all flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-rounded text-base">wifi</span>
+                    <span class="hidden sm:inline">Online Room</span>
+                </button>
+                <button id="btn-open-tournament" class="px-3 py-1.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition-all flex items-center gap-1">
+                    <span class="material-symbols-rounded text-base text-amber-700">emoji_events</span>
+                    <span class="hidden sm:inline">Tournament</span>
+                </button>
+                <button id="btn-toggle-sound" class="p-2 rounded-full bg-md-surfaceHighest text-md-secondary hover:bg-gray-200 transition-all" title="Toggle Sound">
+                    <span class="material-symbols-rounded text-base" id="sound-icon">volume_up</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Arena -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-4 sm:py-6 flex-1 flex flex-col justify-center items-center">
+        
+        <!-- Scoreboard Header -->
+        <div class="w-full max-w-xl md3-card-elevated rounded-3xl p-4 mb-4 sm:mb-6 shadow-md border border-md-primaryContainer/50">
+            <div class="flex items-center justify-between text-center">
+                
+                <!-- Player 1 Profile -->
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-extrabold text-base shadow-md ring-4 ring-indigo-100 mb-1" id="p1-avatar">
+                        YOU
+                    </div>
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20]" id="p1-name">Player 1</span>
+                    <div class="flex gap-1 mt-1" id="p1-stars">
+                        <span class="text-xs text-amber-400">★</span>
+                    </div>
+                </div>
+
+                <!-- Match Center Score & Round -->
+                <div class="px-4 flex flex-col items-center">
+                    <span class="text-[10px] uppercase font-mono font-extrabold tracking-wider text-md-secondary" id="round-tracker">ROUND 1</span>
+                    <div class="text-3xl sm:text-4xl font-mono font-extrabold text-[#1D1B20] tracking-tight my-0.5">
+                        <span id="p1-score" class="text-indigo-600">0</span>
+                        <span class="text-gray-300 mx-1">:</span>
+                        <span id="p2-score" class="text-rose-600">0</span>
+                    </div>
+                    <span class="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full" id="target-pill">First to 2 Wins</span>
+                </div>
+
+                <!-- Player 2 / Bot Profile -->
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-full bg-rose-600 text-white flex items-center justify-center font-extrabold text-base shadow-md ring-4 ring-rose-100 mb-1" id="p2-avatar">
+                        BOT
+                    </div>
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20]" id="p2-name">Cyber Bot</span>
+                    <div class="flex gap-1 mt-1" id="p2-stars">
+                        <span class="text-xs text-gray-300">★</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clash Arena (Big CSS Hands Showdown) -->
+        <div class="w-full max-w-xl bg-gradient-to-b from-white to-[#F0EBF8] rounded-3xl p-6 sm:p-8 shadow-xl border border-white flex flex-col items-center relative overflow-hidden">
+            
+            <!-- Result Toast Banner -->
+            <div id="result-banner" class="absolute top-4 z-20 px-4 py-1.5 rounded-full text-xs font-extrabold shadow-md transition-all duration-300 transform scale-95 opacity-0 pointer-events-none">
+                PICK YOUR WEAPON
+            </div>
+
+            <div class="w-full flex items-center justify-around my-6 sm:my-8 relative">
+                
+                <!-- Player Hand (Left) -->
+                <div class="flex flex-col items-center">
+                    <div id="p1-hand-wrapper" class="h-36 flex items-end">
+                        <div id="p1-hand" class="css-hand gesture-rock">
+                            <div class="hand-palm"></div>
+                            <div class="hand-finger finger-thumb"></div>
+                            <div class="hand-finger finger-index"></div>
+                            <div class="hand-finger finger-middle"></div>
+                            <div class="hand-finger finger-ring"></div>
+                            <div class="hand-finger finger-pinky"></div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-extrabold text-indigo-700 mt-3" id="p1-pick-label">Waiting...</span>
+                </div>
+
+                <!-- VS Badge / Clash FX -->
+                <div class="flex flex-col items-center justify-center z-10">
+                    <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-extrabold text-xs shadow-lg ring-4 ring-amber-100 animate-pulse">
+                        VS
+                    </div>
+                    <span id="lock-status" class="text-[9px] font-mono font-bold text-gray-400 mt-2">TAP BELOW</span>
+                </div>
+
+                <!-- Opponent Hand (Right - Inverted) -->
+                <div class="flex flex-col items-center">
+                    <div id="p2-hand-wrapper" class="h-36 flex items-end">
+                        <div id="p2-hand" class="css-hand hand-opponent gesture-rock">
+                            <div class="hand-palm"></div>
+                            <div class="hand-finger finger-thumb"></div>
+                            <div class="hand-finger finger-index"></div>
+                            <div class="hand-finger finger-middle"></div>
+                            <div class="hand-finger finger-ring"></div>
+                            <div class="hand-finger finger-pinky"></div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-extrabold text-rose-700 mt-3" id="p2-pick-label">Thinking...</span>
+                </div>
+            </div>
+
+            <!-- Prompt instructions -->
+            <p class="text-xs font-bold text-md-secondary text-center" id="status-hint">
+                Tap Rock, Paper, or Scissors! Both hands shoot instantly as soon as choices lock in!
+            </p>
+        </div>
+
+        <!-- Choice Selector Buttons with Pure CSS Hand Icons -->
+        <div class="w-full max-w-xl grid grid-cols-3 gap-3 sm:gap-4 mt-6">
+            
+            <!-- ROCK BUTTON -->
+            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between" data-choice="rock">
+                <div class="h-16 flex items-center justify-center">
+                    <div class="css-hand mini gesture-rock group-hover:scale-110 transition-transform">
+                        <div class="hand-palm"></div>
+                        <div class="hand-finger finger-thumb"></div>
+                        <div class="hand-finger finger-index"></div>
+                        <div class="hand-finger finger-middle"></div>
+                        <div class="hand-finger finger-ring"></div>
+                        <div class="hand-finger finger-pinky"></div>
+                    </div>
+                </div>
+                <div class="mt-2 text-center">
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20] block">ROCK</span>
+                    <span class="text-[9px] text-gray-400">Crushes Scissors</span>
+                </div>
+            </button>
+
+            <!-- PAPER BUTTON -->
+            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between" data-choice="paper">
+                <div class="h-16 flex items-center justify-center">
+                    <div class="css-hand mini gesture-paper group-hover:scale-110 transition-transform">
+                        <div class="hand-palm"></div>
+                        <div class="hand-finger finger-thumb"></div>
+                        <div class="hand-finger finger-index"></div>
+                        <div class="hand-finger finger-middle"></div>
+                        <div class="hand-finger finger-ring"></div>
+                        <div class="hand-finger finger-pinky"></div>
+                    </div>
+                </div>
+                <div class="mt-2 text-center">
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20] block">PAPER</span>
+                    <span class="text-[9px] text-gray-400">Covers Rock</span>
+                </div>
+            </button>
+
+            <!-- SCISSORS BUTTON -->
+            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between" data-choice="scissors">
+                <div class="h-16 flex items-center justify-center">
+                    <div class="css-hand mini gesture-scissors group-hover:scale-110 transition-transform">
+                        <div class="hand-palm"></div>
+                        <div class="hand-finger finger-thumb"></div>
+                        <div class="hand-finger finger-index"></div>
+                        <div class="hand-finger finger-middle"></div>
+                        <div class="hand-finger finger-ring"></div>
+                        <div class="hand-finger finger-pinky"></div>
+                    </div>
+                </div>
+                <div class="mt-2 text-center">
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20] block">SCISSORS</span>
+                    <span class="text-[9px] text-gray-400">Cuts Paper</span>
+                </div>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-3 text-center text-xs text-md-secondary border-t border-md-outlineVariant/30">
+        Gyan Games Studio • WebRTC Direct P2P • Pure CSS Hand Gesture Engine
+    </footer>
+
+    <!-- =======================================================================
+         MODAL 1: MULTIPLAYER ONLINE (PeerJS WebRTC)
+         ======================================================================= -->
+    <div id="multiplayer-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+        <div class="md3-card-elevated rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+            <div class="px-5 py-4 bg-md-surface border-b border-md-outlineVariant/40 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-rounded text-xl text-md-primary">wifi</span>
+                    <h3 class="font-extrabold text-base text-[#1D1B20]">Online Multiplayer</h3>
+                </div>
+                <button id="btn-close-multiplayer" class="p-1.5 rounded-full hover:bg-gray-100 text-gray-500">
+                    <span class="material-symbols-rounded text-lg">close</span>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div class="flex rounded-full bg-md-surfaceHighest p-1 text-xs font-bold">
+                    <button id="tab-host" class="flex-1 py-1.5 rounded-full bg-md-primary text-white transition-all">Host Room</button>
+                    <button id="tab-join" class="flex-1 py-1.5 rounded-full text-md-secondary transition-all">Join Room</button>
+                </div>
+
+                <!-- Host Panel -->
+                <div id="view-host" class="space-y-4">
+                    <div id="host-setup" class="space-y-3">
+                        <div>
+                            <label class="text-[10px] font-extrabold uppercase text-gray-500 block mb-1">Your Name</label>
+                            <input type="text" id="host-name" value="Host Player" maxlength="12" class="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold focus:ring-2 focus:ring-md-primary focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-extrabold uppercase text-gray-500 block mb-1">Match Series Format</label>
+                            <select id="host-bestof" class="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold focus:ring-2 focus:ring-md-primary focus:outline-none">
+                                <option value="1">Best of 1 (Sudden Death)</option>
+                                <option value="3" selected>Best of 3 (Classic)</option>
+                                <option value="5">Best of 5 (Championship)</option>
+                                <option value="7">Best of 7 (Marathon)</option>
+                            </select>
+                        </div>
+                        <button id="btn-create-room" class="w-full py-2.5 rounded-full bg-md-primary text-white text-xs font-bold hover:bg-[#563E91] shadow-md flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-rounded text-base">add_circle</span>
+                            <span>Create Room</span>
+                        </button>
+                    </div>
+
+                    <div id="host-active" class="hidden space-y-3 text-center">
+                        <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200">
+                            <span class="text-[10px] uppercase font-bold text-amber-800 block">Room Code</span>
+                            <span id="display-room-code" class="text-2xl font-mono font-extrabold text-[#1D1B20] tracking-widest">----</span>
+                        </div>
+                        <div id="qrcode-box" class="flex justify-center p-2 bg-white rounded-2xl border mx-auto w-32 h-32 items-center"></div>
+                        <div class="flex gap-2">
+                            <button id="btn-copy-code" class="flex-1 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold">Copy Code</button>
+                            <button id="btn-copy-link" class="flex-1 py-2 rounded-xl bg-md-primary text-white text-xs font-bold">Copy Link</button>
+                        </div>
+                        <p class="text-[10px] text-gray-500">Waiting for friend to connect via WebRTC...</p>
+                    </div>
+                </div>
+
+                <!-- Join Panel -->
+                <div id="view-join" class="hidden space-y-3">
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase text-gray-500 block mb-1">Your Name</label>
+                        <input type="text" id="join-name" value="Challenger" maxlength="12" class="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold focus:ring-2 focus:ring-md-primary focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase text-gray-500 block mb-1">Room Code (e.g. RPS-4821)</label>
+                        <input type="text" id="join-code" placeholder="RPS-XXXX" maxlength="10" class="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-mono font-extrabold text-center uppercase tracking-widest focus:ring-2 focus:ring-md-primary focus:outline-none">
+                    </div>
+                    <div id="join-status" class="hidden text-center text-xs font-bold py-1.5 rounded-xl bg-amber-50 text-amber-800">
+                        Connecting to host...
+                    </div>
+                    <button id="btn-submit-join" class="w-full py-2.5 rounded-full bg-md-primary text-white text-xs font-bold hover:bg-[#563E91] shadow-md flex items-center justify-center gap-1.5">
+                        <span class="material-symbols-rounded text-base">login</span>
+                        <span>Join Match</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================================================================
+         MODAL 2: TOURNAMENT BRACKET HUB
+         ======================================================================= -->
+    <div id="tournament-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+        <div class="md3-card-elevated rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div class="px-5 py-4 bg-md-surface border-b border-md-outlineVariant/40 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-rounded text-xl text-amber-600">emoji_events</span>
+                    <h3 class="font-extrabold text-base text-[#1D1B20]">Rock-Paper-Scissors Tournament Cup</h3>
+                </div>
+                <button id="btn-close-tournament" class="p-1.5 rounded-full hover:bg-gray-100 text-gray-500">
+                    <span class="material-symbols-rounded text-lg">close</span>
+                </button>
+            </div>
+            
+            <div class="p-5 flex-1 overflow-y-auto">
+                <div id="tournament-bracket" class="flex flex-col sm:flex-row gap-4 items-center justify-around py-4">
+                    <!-- Populated dynamically via renderBracket() -->
+                </div>
+            </div>
+
+            <div class="px-5 py-3 bg-gray-50 border-t flex items-center justify-between">
+                <span class="text-xs text-gray-500 font-bold">Knockout rules: Win duel to advance to Grand Finals!</span>
+                <button id="btn-start-bracket" class="px-5 py-2 rounded-full bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 shadow-sm">
+                    Play Next Match
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================================================================
+         MODAL 3: CHAMPION / SERIES OVER DECIDER
+         ======================================================================= -->
+    <div id="match-over-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="md3-card-elevated rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border-2 border-amber-300">
+            <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center text-3xl shadow-inner">
+                🏆
+            </div>
+            <div>
+                <h3 class="text-lg font-extrabold text-[#1D1B20]" id="champion-title">Player 1 Wins the Series!</h3>
+                <p class="text-xs text-gray-500 mt-1" id="champion-sub">Conquered the Best of 3 Tournament duel!</p>
+            </div>
+            <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200 flex justify-around font-mono font-extrabold text-lg">
+                <span id="final-p1-score" class="text-indigo-600">2</span>
+                <span class="text-gray-400">-</span>
+                <span id="final-p2-score" class="text-rose-600">1</span>
+            </div>
+            <button id="btn-series-rematch" class="w-full py-2.5 rounded-full bg-md-primary text-white text-xs font-bold hover:bg-[#563E91] shadow-md">
+                Play Another Series
+            </button>
+        </div>
+    </div>
+
+    <!-- Web Audio & Game Script -->
+    <script>
+        /***********************************************************************
+         * 1. SOUND SYNTHESIZER (Web Audio API)
+         ***********************************************************************/
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playTone(freq, type = 'sine', duration = 0.1, gain = 0.2) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                g.gain.setValueAtTime(gain, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.connect(g);
+                g.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            playSelect() { this.playTone(600, 'triangle', 0.08, 0.15); }
+            playThrow() {
+                this.playTone(280, 'sine', 0.12, 0.25);
+                setTimeout(() => this.playTone(420, 'triangle', 0.15, 0.2), 120);
+            }
+            playWin() {
+                this.playTone(523, 'triangle', 0.12, 0.2);
+                setTimeout(() => this.playTone(659, 'triangle', 0.14, 0.2), 100);
+                setTimeout(() => this.playTone(783, 'triangle', 0.25, 0.25), 200);
+            }
+            playLose() {
+                this.playTone(392, 'sawtooth', 0.15, 0.15);
+                setTimeout(() => this.playTone(330, 'sawtooth', 0.25, 0.15), 120);
+            }
+            playDraw() { this.playTone(440, 'sine', 0.18, 0.15); }
+        }
+        const sfx = new SoundEngine();
+
+        /***********************************************************************
+         * 2. GLOBAL STATE & PEERJS NETWORKING
+         ***********************************************************************/
+        const SITE_URL = 'https://gyan-games.vercel.app';
+
+        const gameState = {
+            mode: 'bot',              // 'bot' or 'online'
+            bestOf: 3,                // 1, 3, 5, 7
+            round: 1,
+            p1Score: 0,
+            p2Score: 0,
+            p1Pick: null,             // 'rock', 'paper', 'scissors'
+            p2Pick: null,
+            isResolving: false,
+            p1Name: 'Player 1',
+            p2Name: 'Cyber Bot',
+            tournament: {
+                matches: [],
+                currentMatch: 0
+            }
+        };
+
+        class RPSNetworkManager {
+            constructor() {
+                this.peer = null;
+                this.conn = null;
+                this.isHost = false;
+                this.roomCode = null;
+                this.isConnected = false;
+            }
+
+            generateCode() {
+                const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+                let c = 'RPS-';
+                for (let i = 0; i < 4; i++) c += chars.charAt(Math.floor(Math.random() * chars.length));
+                return c;
+            }
+
+            initHost(name, bestOf) {
+                this.isHost = true;
+                this.roomCode = this.generateCode();
+                gameState.p1Name = name;
+                gameState.bestOf = bestOf;
+                gameState.mode = 'online';
+
+                const peerId = `rps-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+
+                this.peer = new Peer(peerId, {
+                    debug: 1,
+                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] }
+                });
+
+                this.peer.on('open', () => {
+                    this.isConnected = true;
+                    document.getElementById('display-room-code').textContent = this.roomCode;
+                    renderQRCode(this.roomCode);
+                    document.getElementById('host-setup').classList.add('hidden');
+                    document.getElementById('host-active').classList.remove('hidden');
+                    updateHeaderNetUI(true, this.roomCode);
+                });
+
+                this.peer.on('connection', (c) => {
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+
+            initClient(roomCode, name) {
+                this.isHost = false;
+                this.roomCode = roomCode.toUpperCase();
+                gameState.p2Name = name;
+                gameState.mode = 'online';
+
+                const targetId = `rps-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+
+                this.peer = new Peer(null, {
+                    debug: 1,
+                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] }
+                });
+
+                this.peer.on('open', () => {
+                    const c = this.peer.connect(targetId, { reliable: true });
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+
+            setupConnection() {
+                this.conn.on('open', () => {
+                    this.isConnected = true;
+                    updateHeaderNetUI(this.isHost, this.roomCode);
+
+                    if (this.isHost) {
+                        this.conn.send({
+                            type: 'welcome',
+                            hostName: gameState.p1Name,
+                            bestOf: gameState.bestOf
+                        });
+                    } else {
+                        this.conn.send({
+                            type: 'join_info',
+                            clientName: gameState.p2Name
+                        });
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                    }
+                });
+
+                this.conn.on('data', (data) => {
+                    this.handleMessage(data);
+                });
+
+                this.conn.on('close', () => {
+                    alert('Opponent disconnected!');
+                    this.isConnected = false;
+                    gameState.mode = 'bot';
+                    updateHeaderNetUI(false, null);
+                });
+            }
+
+            send(data) {
+                if (this.conn && this.conn.open) {
+                    this.conn.send(data);
+                }
+            }
+
+            handleMessage(data) {
+                if (data.type === 'welcome') {
+                    gameState.p1Name = data.hostName;
+                    gameState.p2Name = document.getElementById('join-name').value.trim() || 'Challenger';
+                    gameState.bestOf = data.bestOf;
+                    document.getElementById('multiplayer-modal').classList.add('hidden');
+                    resetSeriesScores();
+                } else if (data.type === 'join_info') {
+                    gameState.p2Name = data.clientName;
+                    document.getElementById('multiplayer-modal').classList.add('hidden');
+                    resetSeriesScores();
+                } else if (data.type === 'pick_locked') {
+                    // Opponent locked in their choice!
+                    document.getElementById('p2-pick-label').textContent = 'LOCKED IN 🔒';
+                    gameState.p2Pick = data.choice;
+                    checkBothPlayersReady();
+                } else if (data.type === 'rematch') {
+                    resetSeriesScores();
+                }
+            }
+        }
+        const net = new RPSNetworkManager();
+
+        function updateHeaderNetUI(isOnline, code) {
+            const netLabel = document.getElementById('net-label');
+            const netDot = document.getElementById('net-dot');
+            const hudCode = document.getElementById('hud-room-code');
+            const badgeMode = document.getElementById('badge-mode');
+
+            if (isOnline && code) {
+                netLabel.textContent = net.isHost ? 'Online (Host)' : 'Online (Peer)';
+                netDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                hudCode.textContent = `ROOM: ${code}`;
+                hudCode.classList.remove('hidden');
+                badgeMode.textContent = 'MULTIPLAYER';
+            } else {
+                netLabel.textContent = 'Solo Practice';
+                netDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                hudCode.classList.add('hidden');
+                badgeMode.textContent = 'VS BOT';
+            }
+            updateNamesDisplay();
+        }
+
+        function getRoomShareUrl(code) {
+            return `${SITE_URL}/rps.html?room=${encodeURIComponent(code)}`;
+        }
+
+        function renderQRCode(code) {
+            const box = document.getElementById('qrcode-box');
+            box.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(box, {
+                    text: getRoomShareUrl(code),
+                    width: 110,
+                    height: 110,
+                    colorDark: '#21005D',
+                    colorLight: '#FFFFFF',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+        }
+
+        /***********************************************************************
+         * 3. GAMEPLAY ENGINE & SIMULTANEOUS RESOLUTION
+         ***********************************************************************/
+        function updateNamesDisplay() {
+            document.getElementById('p1-name').textContent = gameState.p1Name;
+            document.getElementById('p2-name').textContent = gameState.p2Name;
+            document.getElementById('badge-series').textContent = `Best of ${gameState.bestOf} ▾`;
+            document.getElementById('target-pill').textContent = `First to ${Math.floor(gameState.bestOf / 2) + 1} Wins`;
+        }
+
+        function renderStarTrackers() {
+            const targetWins = Math.floor(gameState.bestOf / 2) + 1;
+            const p1Stars = document.getElementById('p1-stars');
+            const p2Stars = document.getElementById('p2-stars');
+
+            p1Stars.innerHTML = Array.from({ length: targetWins }).map((_, i) =>
+                `<span class="${i < gameState.p1Score ? 'text-amber-500' : 'text-gray-300'} text-xs">★</span>`
+            ).join('');
+
+            p2Stars.innerHTML = Array.from({ length: targetWins }).map((_, i) =>
+                `<span class="${i < gameState.p2Score ? 'text-amber-500' : 'text-gray-300'} text-xs">★</span>`
+            ).join('');
+        }
+
+        function setHandGesture(handEl, gesture) {
+            handEl.classList.remove('gesture-rock', 'gesture-paper', 'gesture-scissors');
+            handEl.classList.add(`gesture-${gesture}`);
+        }
+
+        // Handle user choice click
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (gameState.isResolving || gameState.p1Pick) return;
+                sfx.playSelect();
+                const choice = btn.dataset.choice;
+                gameState.p1Pick = choice;
+
+                // Visual lock-in
+                document.getElementById('p1-pick-label').textContent = 'LOCKED IN 🔒';
+                document.getElementById('lock-status').textContent = 'READY!';
+                document.getElementById('lock-status').className = 'text-[9px] font-mono font-extrabold text-emerald-600 mt-2';
+
+                if (gameState.mode === 'online') {
+                    net.send({ type: 'pick_locked', choice: choice });
+                    checkBothPlayersReady();
+                } else {
+                    // Bot generates choice instantly
+                    const botChoices = ['rock', 'paper', 'scissors'];
+                    // Smart Bot slightly adapts to player patterns
+                    gameState.p2Pick = botChoices[Math.floor(Math.random() * 3)];
+                    document.getElementById('p2-pick-label').textContent = 'LOCKED IN 🔒';
+                    checkBothPlayersReady();
+                }
+            });
+        });
+
+        // Trigger immediate resolution as soon as both clicked (NO COUNTDOWN)
+        function checkBothPlayersReady() {
+            if (gameState.p1Pick && gameState.p2Pick && !gameState.isResolving) {
+                resolveClash();
+            }
+        }
+
+        function resolveClash() {
+            gameState.isResolving = true;
+            sfx.playThrow();
+
+            const p1Hand = document.getElementById('p1-hand');
+            const p2Hand = document.getElementById('p2-hand');
+            const p1Wrap = document.getElementById('p1-hand-wrapper');
+            const p2Wrap = document.getElementById('p2-hand-wrapper');
+
+            // Reset hands to rock fist for the throw bounce
+            setHandGesture(p1Hand, 'rock');
+            setHandGesture(p2Hand, 'rock');
+
+            p1Wrap.classList.add('throw-anim');
+            p2Wrap.classList.add('throw-anim');
+
+            // Mid-animation reveal
+            setTimeout(() => {
+                setHandGesture(p1Hand, gameState.p1Pick);
+                setHandGesture(p2Hand, gameState.p2Pick);
+
+                document.getElementById('p1-pick-label').textContent = gameState.p1Pick.toUpperCase();
+                document.getElementById('p2-pick-label').textContent = gameState.p2Pick.toUpperCase();
+
+                evaluateOutcome(gameState.p1Pick, gameState.p2Pick);
+            }, 300);
+
+            // Clean up animation classes
+            setTimeout(() => {
+                p1Wrap.classList.remove('throw-anim');
+                p2Wrap.classList.remove('throw-anim');
+            }, 600);
+        }
+
+        function evaluateOutcome(p1, p2) {
+            const banner = document.getElementById('result-banner');
+            let outcome = 'draw'; // 'p1', 'p2', or 'draw'
+
+            if (p1 === p2) {
+                outcome = 'draw';
+            } else if (
+                (p1 === 'rock' && p2 === 'scissors') ||
+                (p1 === 'paper' && p2 === 'rock') ||
+                (p1 === 'scissors' && p2 === 'paper')
+            ) {
+                outcome = 'p1';
+            } else {
+                outcome = 'p2';
+            }
+
+            banner.classList.remove('opacity-0', 'scale-95', 'bg-emerald-100', 'text-emerald-900', 'bg-rose-100', 'text-rose-900', 'bg-amber-100', 'text-amber-900');
+
+            if (outcome === 'p1') {
+                gameState.p1Score++;
+                sfx.playWin();
+                banner.textContent = `${gameState.p1Name} Strikes! (${p1.toUpperCase()} BEATS ${p2.toUpperCase()})`;
+                banner.classList.add('bg-emerald-100', 'text-emerald-900', 'opacity-100', 'scale-100');
+            } else if (outcome === 'p2') {
+                gameState.p2Score++;
+                sfx.playLose();
+                banner.textContent = `${gameState.p2Name} Strikes! (${p2.toUpperCase()} BEATS ${p1.toUpperCase()})`;
+                banner.classList.add('bg-rose-100', 'text-rose-900', 'opacity-100', 'scale-100');
+            } else {
+                sfx.playDraw();
+                banner.textContent = `MUTUAL CLASH! BOTH THREW ${p1.toUpperCase()}!`;
+                banner.classList.add('bg-amber-100', 'text-amber-900', 'opacity-100', 'scale-100');
+            }
+
+            document.getElementById('p1-score').textContent = gameState.p1Score;
+            document.getElementById('p2-score').textContent = gameState.p2Score;
+            renderStarTrackers();
+
+            const targetWins = Math.floor(gameState.bestOf / 2) + 1;
+            const isMatchOver = gameState.p1Score >= targetWins || gameState.p2Score >= targetWins;
+
+            setTimeout(() => {
+                if (isMatchOver) {
+                    showSeriesWinner();
+                } else {
+                    prepareNextRound();
+                }
+            }, 1400);
+        }
+
+        function prepareNextRound() {
+            gameState.round++;
+            gameState.p1Pick = null;
+            gameState.p2Pick = null;
+            gameState.isResolving = false;
+
+            document.getElementById('round-tracker').textContent = `ROUND ${gameState.round}`;
+            document.getElementById('p1-pick-label').textContent = 'Waiting...';
+            document.getElementById('p2-pick-label').textContent = 'Waiting...';
+            document.getElementById('lock-status').textContent = 'TAP BELOW';
+            document.getElementById('lock-status').className = 'text-[9px] font-mono font-bold text-gray-400 mt-2';
+
+            const banner = document.getElementById('result-banner');
+            banner.classList.add('opacity-0', 'scale-95');
+
+            // Reset hands to neutral fist
+            setHandGesture(document.getElementById('p1-hand'), 'rock');
+            setHandGesture(document.getElementById('p2-hand'), 'rock');
+        }
+
+        function showSeriesWinner() {
+            const targetWins = Math.floor(gameState.bestOf / 2) + 1;
+            const p1Won = gameState.p1Score >= targetWins;
+            const winnerName = p1Won ? gameState.p1Name : gameState.p2Name;
+
+            document.getElementById('champion-title').textContent = `🏆 ${winnerName} Wins the Match!`;
+            document.getElementById('champion-sub').textContent = `Conquered the Best of ${gameState.bestOf} series!`;
+            document.getElementById('final-p1-score').textContent = gameState.p1Score;
+            document.getElementById('final-p2-score').textContent = gameState.p2Score;
+
+            if (p1Won && typeof confetti !== 'undefined') {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            }
+
+            document.getElementById('match-over-modal').classList.remove('hidden');
+            document.getElementById('match-over-modal').classList.add('flex');
+        }
+
+        function resetSeriesScores() {
+            gameState.round = 1;
+            gameState.p1Score = 0;
+            gameState.p2Score = 0;
+            gameState.p1Pick = null;
+            gameState.p2Pick = null;
+            gameState.isResolving = false;
+
+            document.getElementById('round-tracker').textContent = 'ROUND 1';
+            document.getElementById('p1-score').textContent = '0';
+            document.getElementById('p2-score').textContent = '0';
+            document.getElementById('match-over-modal').classList.add('hidden');
+            document.getElementById('match-over-modal').classList.remove('flex');
+            document.getElementById('result-banner').classList.add('opacity-0', 'scale-95');
+
+            updateNamesDisplay();
+            renderStarTrackers();
+            setHandGesture(document.getElementById('p1-hand'), 'rock');
+            setHandGesture(document.getElementById('p2-hand'), 'rock');
+        }
+
+        document.getElementById('btn-series-rematch').addEventListener('click', () => {
+            resetSeriesScores();
+            if (gameState.mode === 'online') {
+                net.send({ type: 'rematch' });
+            }
+        });
+
+        // Cycle Series format via badge
+        document.getElementById('badge-series').addEventListener('click', () => {
+            sfx.playSelect();
+            const formats = [1, 3, 5, 7];
+            const next = formats[(formats.indexOf(gameState.bestOf) + 1) % formats.length];
+            gameState.bestOf = next;
+            resetSeriesScores();
+        });
+
+        /***********************************************************************
+         * 4. TOURNAMENT BRACKET SYSTEM (4-Player & 8-Player)
+         ***********************************************************************/
+        function initTournament() {
+            gameState.tournament.matches = [
+                { id: 0, round: 1, p1: gameState.p1Name, p2: 'Bot Alpha', winner: null, status: 'READY' },
+                { id: 1, round: 1, p1: 'Cyber Bot', p2: 'Bot Delta', winner: null, status: 'PENDING' },
+                { id: 2, round: 2, p1: 'TBD', p2: 'TBD', winner: null, status: 'WAITING' }
+            ];
+            gameState.tournament.currentMatch = 0;
+            renderBracket();
+        }
+
+        function renderBracket() {
+            const container = document.getElementById('tournament-bracket');
+            container.innerHTML = '';
+
+            const semiCol = document.createElement('div');
+            semiCol.className = 'space-y-4';
+            semiCol.innerHTML = `<h4 class="text-center font-extrabold text-xs uppercase text-md-primary border-b pb-1">Semifinals</h4>`;
+
+            [gameState.tournament.matches[0], gameState.tournament.matches[1]].forEach(m => {
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl bg-white border-2 text-xs shadow-sm w-44 ${m.status === 'READY' ? 'border-amber-500 ring-2 ring-amber-200' : 'border-gray-200'}`;
+                card.innerHTML = `
+                    <div class="text-[9px] font-bold text-gray-400 mb-1 flex justify-between">
+                        <span>Duel #${m.id + 1}</span>
+                        <span>${m.status}</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
+                            <span>${m.p1}</span>
+                            ${m.winner === m.p1 ? '<span class="text-emerald-600">✓</span>' : ''}
+                        </div>
+                        <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
+                            <span>${m.p2}</span>
+                            ${m.winner === m.p2 ? '<span class="text-emerald-600">✓</span>' : ''}
+                        </div>
+                    </div>
+                `;
+                semiCol.appendChild(card);
+            });
+
+            const finalCol = document.createElement('div');
+            finalCol.className = 'space-y-4';
+            finalCol.innerHTML = `<h4 class="text-center font-extrabold text-xs uppercase text-amber-600 border-b pb-1">Grand Final</h4>`;
+
+            const finalMatch = gameState.tournament.matches[2];
+            const finalCard = document.createElement('div');
+            finalCard.className = `p-3 rounded-2xl bg-white border-2 text-xs shadow-sm w-44 ${finalMatch.status === 'READY' ? 'border-amber-500 ring-2 ring-amber-200' : 'border-gray-200'}`;
+            finalCard.innerHTML = `
+                <div class="text-[9px] font-bold text-gray-400 mb-1 flex justify-between">
+                    <span>Final</span>
+                    <span>${finalMatch.status}</span>
+                </div>
+                <div class="space-y-1">
+                    <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
+                        <span>${finalMatch.p1}</span>
+                        ${finalMatch.winner === finalMatch.p1 ? '<span class="text-emerald-600">✓</span>' : ''}
+                    </div>
+                    <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
+                        <span>${finalMatch.p2}</span>
+                        ${finalMatch.winner === finalMatch.p2 ? '<span class="text-emerald-600">✓</span>' : ''}
+                    </div>
+                </div>
+            `;
+            finalCol.appendChild(finalCard);
+
+            container.appendChild(semiCol);
+            container.appendChild(finalCol);
+        }
+
+        document.getElementById('btn-open-tournament').addEventListener('click', () => {
+            sfx.playSelect();
+            initTournament();
+            document.getElementById('tournament-modal').classList.remove('hidden');
+            document.getElementById('tournament-modal').classList.add('flex');
+        });
+
+        document.getElementById('btn-close-tournament').addEventListener('click', () => {
+            document.getElementById('tournament-modal').classList.add('hidden');
+            document.getElementById('tournament-modal').classList.remove('flex');
+        });
+
+        document.getElementById('btn-start-bracket').addEventListener('click', () => {
+            document.getElementById('tournament-modal').classList.add('hidden');
+            document.getElementById('tournament-modal').classList.remove('flex');
+            resetSeriesScores();
+        });
+
+        /***********************************************************************
+         * 5. UI CONTROLS & URL AUTO-JOIN
+         ***********************************************************************/
+        document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('sound-icon').textContent = sfx.enabled ? 'volume_up' : 'volume_off';
+        });
+
+        // Online Modal Open / Close
+        document.getElementById('btn-open-multiplayer').addEventListener('click', () => {
+            sfx.playSelect();
+            document.getElementById('multiplayer-modal').classList.remove('hidden');
+            document.getElementById('multiplayer-modal').classList.add('flex');
+        });
+
+        document.getElementById('btn-close-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.add('hidden');
+            document.getElementById('multiplayer-modal').classList.remove('flex');
+        });
+
+        document.getElementById('tab-host').addEventListener('click', () => {
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full bg-md-primary text-white transition-all';
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full text-md-secondary transition-all';
+            document.getElementById('view-host').classList.remove('hidden');
+            document.getElementById('view-join').classList.add('hidden');
+        });
+
+        document.getElementById('tab-join').addEventListener('click', () => {
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full bg-md-primary text-white transition-all';
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full text-md-secondary transition-all';
+            document.getElementById('view-join').classList.remove('hidden');
+            document.getElementById('view-host').classList.add('hidden');
+        });
+
+        document.getElementById('btn-create-room').addEventListener('click', () => {
+            sfx.playSelect();
+            const name = document.getElementById('host-name').value.trim() || 'Host Player';
+            const bestOf = parseInt(document.getElementById('host-bestof').value);
+            net.initHost(name, bestOf);
+        });
+
+        document.getElementById('btn-submit-join').addEventListener('click', () => {
+            sfx.playSelect();
+            const code = document.getElementById('join-code').value.trim().toUpperCase();
+            const name = document.getElementById('join-name').value.trim() || 'Challenger';
+            if (!code) {
+                alert('Please enter a room code!');
+                return;
+            }
+            document.getElementById('join-status').classList.remove('hidden');
+            net.initClient(code, name);
+        });
+
+        document.getElementById('btn-copy-code').addEventListener('click', () => {
+            if (net.roomCode) {
+                navigator.clipboard.writeText(net.roomCode);
+                alert(`Room code ${net.roomCode} copied!`);
+            }
+        });
+
+        document.getElementById('btn-copy-link').addEventListener('click', () => {
+            if (net.roomCode) {
+                const link = getRoomShareUrl(net.roomCode);
+                navigator.clipboard.writeText(link);
+                alert(`Invite Link copied:\n${link}`);
+            }
+        });
+
+        document.getElementById('hud-room-code').addEventListener('click', () => {
+            if (net.roomCode) {
+                const link = getRoomShareUrl(net.roomCode);
+                navigator.clipboard.writeText(link);
+                alert(`Invite Link copied:\n${link}`);
+            }
+        });
+
+        // Auto-check URL for ?room=
+        window.onload = function() {
+            renderStarTrackers();
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if (roomParam) {
+                document.getElementById('join-code').value = roomParam;
+                document.getElementById('multiplayer-modal').classList.remove('hidden');
+                document.getElementById('multiplayer-modal').classList.add('flex');
+                document.getElementById('tab-join').click();
+            }
+        };
+    </script>
+</body>
+</html>
