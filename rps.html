@@ -19,7 +19,6 @@
                             onPrimaryContainer: '#21005D',
                             surface: '#FEF7FF',
                             surfaceHighest: '#E6E0E9',
-                            outline: '#79747E',
                             outlineVariant: '#CAC4D0',
                             secondary: '#625B71',
                             error: '#B3261E'
@@ -53,182 +52,35 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        .md3-card {
-            background: rgba(255, 255, 255, 0.90);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(121, 116, 126, 0.20);
-        }
-
         .md3-card-elevated {
             background: #FFFFFF;
             box-shadow: 0 4px 24px -2px rgba(33, 0, 93, 0.12), 0 2px 8px -2px rgba(33, 0, 93, 0.08);
             border: 1px solid rgba(234, 221, 255, 0.6);
         }
 
-        .turn-glow {
-            animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        @keyframes quickThrowShake {
+            0%   { transform: translateY(0) rotate(0deg); }
+            15%  { transform: translateY(-32px) rotate(-10deg) scale(1.08); }
+            35%  { transform: translateY(12px) rotate(6deg) scale(0.96); }
+            55%  { transform: translateY(-24px) rotate(-8deg) scale(1.06); }
+            75%  { transform: translateY(8px) rotate(4deg) scale(0.98); }
+            100% { transform: translateY(0) rotate(0deg) scale(1); }
         }
 
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(103, 80, 164, 0.5); }
-            70% { box-shadow: 0 0 0 14px rgba(103, 80, 164, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(103, 80, 164, 0); }
+        .shake-throw {
+            animation: quickThrowShake 0.46s cubic-bezier(0.36, 0.07, 0.19, 0.97);
         }
 
-        @keyframes handThrow {
-            0% { transform: translateY(0) scale(1); }
-            30% { transform: translateY(-40px) scale(1.1) rotate(-8deg); }
-            60% { transform: translateY(15px) scale(0.96) rotate(4deg); }
-            100% { transform: translateY(0) scale(1) rotate(0deg); }
+        .hand-svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.12));
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        .throw-anim {
-            animation: handThrow 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        /***********************************************************************
-         * PURE CSS HAND ENGINE (Rock, Paper, Scissors)
-         ***********************************************************************/
-        .css-hand {
-            position: relative;
-            width: 100px;
-            height: 120px;
-            margin: 0 auto;
-            transform-origin: bottom center;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .css-hand.mini {
-            width: 50px;
-            height: 60px;
-        }
-
-        .hand-palm {
-            position: absolute;
-            bottom: 0;
-            left: 20px;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #fbd2a4, #e8a872);
-            border-radius: 14px 14px 22px 22px;
-            box-shadow: inset -2px -4px 8px rgba(180, 95, 30, 0.25), 0 6px 14px rgba(0, 0, 0, 0.12);
-            z-index: 2;
-        }
-
-        .css-hand.mini .hand-palm {
-            left: 10px;
-            width: 30px;
-            height: 30px;
-            border-radius: 8px 8px 12px 12px;
-        }
-
-        .hand-finger {
-            position: absolute;
-            background: linear-gradient(to top, #e8a872 0%, #fbd2a4 70%, #fadab3 100%);
-            border-radius: 9px;
-            box-shadow: inset -1px 0 3px rgba(180, 95, 30, 0.2);
-            transform-origin: bottom center;
-            transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 1;
-        }
-
-        /* Fingers dimensions & positions */
-        .finger-index { left: 24px; bottom: 50px; width: 14px; height: 50px; }
-        .finger-middle { left: 40px; bottom: 50px; width: 14px; height: 58px; }
-        .finger-ring { left: 56px; bottom: 50px; width: 14px; height: 52px; }
-        .finger-pinky { left: 72px; bottom: 50px; width: 12px; height: 42px; }
-        .finger-thumb {
-            left: 2px;
-            bottom: 12px;
-            width: 17px;
-            height: 42px;
-            transform-origin: bottom right;
-            transform: rotate(-32deg);
-            z-index: 3;
-            border-radius: 10px;
-        }
-
-        .css-hand.mini .finger-index { left: 12px; bottom: 25px; width: 7px; height: 25px; border-radius: 5px; }
-        .css-hand.mini .finger-middle { left: 20px; bottom: 25px; width: 7px; height: 29px; border-radius: 5px; }
-        .css-hand.mini .finger-ring { left: 28px; bottom: 25px; width: 7px; height: 26px; border-radius: 5px; }
-        .css-hand.mini .finger-pinky { left: 36px; bottom: 25px; width: 6px; height: 21px; border-radius: 5px; }
-        .css-hand.mini .finger-thumb { left: 1px; bottom: 6px; width: 9px; height: 21px; border-radius: 5px; }
-
-        /* GESTURE 1: ROCK (Closed Fist) */
-        .gesture-rock .finger-index,
-        .gesture-rock .finger-middle,
-        .gesture-rock .finger-ring,
-        .gesture-rock .finger-pinky {
-            transform: translateY(28px) scaleY(0.42);
-            border-radius: 12px;
-            z-index: 4;
-            background: linear-gradient(to top, #df9b64, #f4c28f);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-        }
-        .gesture-rock .finger-thumb {
-            transform: rotate(45deg) translate(22px, -6px) scale(0.92);
-            z-index: 5;
-        }
-        .css-hand.mini.gesture-rock .finger-index,
-        .css-hand.mini.gesture-rock .finger-middle,
-        .css-hand.mini.gesture-rock .finger-ring,
-        .css-hand.mini.gesture-rock .finger-pinky {
-            transform: translateY(14px) scaleY(0.42);
-        }
-        .css-hand.mini.gesture-rock .finger-thumb {
-            transform: rotate(45deg) translate(11px, -3px) scale(0.92);
-        }
-
-        /* GESTURE 2: PAPER (Open Palm) */
-        .gesture-paper .finger-index { transform: translateY(0) scaleY(1); }
-        .gesture-paper .finger-middle { transform: translateY(0) scaleY(1); }
-        .gesture-paper .finger-ring { transform: translateY(0) scaleY(1); }
-        .gesture-paper .finger-pinky { transform: translateY(0) scaleY(1); }
-        .gesture-paper .finger-thumb { transform: rotate(-38deg) translateY(-2px); }
-
-        /* GESTURE 3: SCISSORS (V-Shape Index & Middle, Ring & Pinky Folded) */
-        .gesture-scissors .finger-index {
-            transform: rotate(-14deg) translateY(0) scaleY(1);
-        }
-        .gesture-scissors .finger-middle {
-            transform: rotate(14deg) translateY(0) scaleY(1);
-        }
-        .gesture-scissors .finger-ring,
-        .gesture-scissors .finger-pinky {
-            transform: translateY(28px) scaleY(0.42);
-            border-radius: 12px;
-            z-index: 4;
-            background: linear-gradient(to top, #df9b64, #f4c28f);
-        }
-        .gesture-scissors .finger-thumb {
-            transform: rotate(42deg) translate(20px, -4px) scale(0.92);
-            z-index: 5;
-        }
-        .css-hand.mini.gesture-scissors .finger-ring,
-        .css-hand.mini.gesture-scissors .finger-pinky {
-            transform: translateY(14px) scaleY(0.42);
-        }
-        .css-hand.mini.gesture-scissors .finger-thumb {
-            transform: rotate(42deg) translate(10px, -2px) scale(0.92);
-        }
-
-        /* Invert opponent hand facing left */
-        .hand-opponent {
+        .hand-opponent-flip {
             transform: scaleX(-1);
-        }
-
-        /* Bracket node styling */
-        .bracket-node {
-            position: relative;
-        }
-        .bracket-node::after {
-            content: '';
-            position: absolute;
-            right: -14px;
-            top: 50%;
-            width: 14px;
-            height: 2px;
-            background: #CAC4D0;
         }
     </style>
 </head>
@@ -319,7 +171,7 @@
             </div>
         </div>
 
-        <!-- Clash Arena (Big CSS Hands Showdown) -->
+        <!-- Clash Arena (Connected Black Outline Hands Showdown) -->
         <div class="w-full max-w-xl bg-gradient-to-b from-white to-[#F0EBF8] rounded-3xl p-6 sm:p-8 shadow-xl border border-white flex flex-col items-center relative overflow-hidden">
             
             <!-- Result Toast Banner -->
@@ -331,14 +183,9 @@
                 
                 <!-- Player Hand (Left) -->
                 <div class="flex flex-col items-center">
-                    <div id="p1-hand-wrapper" class="h-36 flex items-end">
-                        <div id="p1-hand" class="css-hand gesture-rock">
-                            <div class="hand-palm"></div>
-                            <div class="hand-finger finger-thumb"></div>
-                            <div class="hand-finger finger-index"></div>
-                            <div class="hand-finger finger-middle"></div>
-                            <div class="hand-finger finger-ring"></div>
-                            <div class="hand-finger finger-pinky"></div>
+                    <div id="p1-hand-wrapper" class="w-28 h-32 flex items-center justify-center">
+                        <div id="p1-hand" class="w-full h-full">
+                            <!-- Injected SVG -->
                         </div>
                     </div>
                     <span class="text-xs font-extrabold text-indigo-700 mt-3" id="p1-pick-label">Waiting...</span>
@@ -354,40 +201,31 @@
 
                 <!-- Opponent Hand (Right - Inverted) -->
                 <div class="flex flex-col items-center">
-                    <div id="p2-hand-wrapper" class="h-36 flex items-end">
-                        <div id="p2-hand" class="css-hand hand-opponent gesture-rock">
-                            <div class="hand-palm"></div>
-                            <div class="hand-finger finger-thumb"></div>
-                            <div class="hand-finger finger-index"></div>
-                            <div class="hand-finger finger-middle"></div>
-                            <div class="hand-finger finger-ring"></div>
-                            <div class="hand-finger finger-pinky"></div>
+                    <div id="p2-hand-wrapper" class="w-28 h-32 flex items-center justify-center hand-opponent-flip">
+                        <div id="p2-hand" class="w-full h-full">
+                            <!-- Injected SVG -->
                         </div>
                     </div>
                     <span class="text-xs font-extrabold text-rose-700 mt-3" id="p2-pick-label">Thinking...</span>
                 </div>
             </div>
 
-            <!-- Prompt instructions -->
             <p class="text-xs font-bold text-md-secondary text-center" id="status-hint">
                 Tap Rock, Paper, or Scissors! Both hands shoot instantly as soon as choices lock in!
             </p>
         </div>
 
-        <!-- Choice Selector Buttons with Pure CSS Hand Icons -->
+        <!-- Choice Selector Buttons with Pure Black Connected Outline Hand Icons -->
         <div class="w-full max-w-xl grid grid-cols-3 gap-3 sm:gap-4 mt-6">
             
             <!-- ROCK BUTTON -->
-            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between" data-choice="rock">
-                <div class="h-16 flex items-center justify-center">
-                    <div class="css-hand mini gesture-rock group-hover:scale-110 transition-transform">
-                        <div class="hand-palm"></div>
-                        <div class="hand-finger finger-thumb"></div>
-                        <div class="hand-finger finger-index"></div>
-                        <div class="hand-finger finger-middle"></div>
-                        <div class="hand-finger finger-ring"></div>
-                        <div class="hand-finger finger-pinky"></div>
-                    </div>
+            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between shadow-sm" data-choice="rock">
+                <div class="w-12 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg class="hand-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 32 105 C 24 105 20 85 20 65 C 20 46 28 38 38 40 C 44 36 54 36 58 40 C 62 36 72 38 76 44 C 80 50 80 85 72 105 Z" fill="#FFFFFF" stroke="#1D1B20" stroke-width="3.5" stroke-linejoin="round"/>
+                        <path d="M 20 72 C 22 55 36 50 54 55 C 60 58 60 68 52 72 C 38 76 28 80 20 72 Z" fill="#FFFFFF" stroke="#1D1B20" stroke-width="3.5"/>
+                        <path d="M 38 40 L 40 55 M 58 40 L 56 55 M 76 44 L 70 58" fill="none" stroke="#1D1B20" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
                 </div>
                 <div class="mt-2 text-center">
                     <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20] block">ROCK</span>
@@ -396,16 +234,12 @@
             </button>
 
             <!-- PAPER BUTTON -->
-            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between" data-choice="paper">
-                <div class="h-16 flex items-center justify-center">
-                    <div class="css-hand mini gesture-paper group-hover:scale-110 transition-transform">
-                        <div class="hand-palm"></div>
-                        <div class="hand-finger finger-thumb"></div>
-                        <div class="hand-finger finger-index"></div>
-                        <div class="hand-finger finger-middle"></div>
-                        <div class="hand-finger finger-ring"></div>
-                        <div class="hand-finger finger-pinky"></div>
-                    </div>
+            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between shadow-sm" data-choice="paper">
+                <div class="w-12 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg class="hand-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 32 108 C 22 106 18 88 18 72 L 6 56 C 2 48 12 44 18 50 L 26 62 L 25 18 C 25 10 36 10 36 18 L 36 46 L 41 12 C 41 4 52 4 52 12 L 52 46 L 57 18 C 57 10 68 10 68 18 L 67 48 L 73 26 C 73 18 84 20 82 28 L 78 62 C 82 78 80 94 72 108 Z" fill="#FFFFFF" stroke="#1D1B20" stroke-width="3.5" stroke-linejoin="round"/>
+                        <path d="M 26 68 C 38 74 54 74 68 68" fill="none" stroke="#1D1B20" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
                 </div>
                 <div class="mt-2 text-center">
                     <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20] block">PAPER</span>
@@ -414,16 +248,14 @@
             </button>
 
             <!-- SCISSORS BUTTON -->
-            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between" data-choice="scissors">
-                <div class="h-16 flex items-center justify-center">
-                    <div class="css-hand mini gesture-scissors group-hover:scale-110 transition-transform">
-                        <div class="hand-palm"></div>
-                        <div class="hand-finger finger-thumb"></div>
-                        <div class="hand-finger finger-index"></div>
-                        <div class="hand-finger finger-middle"></div>
-                        <div class="hand-finger finger-ring"></div>
-                        <div class="hand-finger finger-pinky"></div>
-                    </div>
+            <button class="choice-btn group p-3 sm:p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-500 hover:shadow-lg active:scale-95 transition-all flex flex-col items-center justify-between shadow-sm" data-choice="scissors">
+                <div class="w-12 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg class="hand-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 32 105 C 24 105 22 85 24 65 L 28 16 C 28 8 40 8 41 16 L 43 45 L 53 14 C 55 6 67 8 65 17 L 59 46 C 64 44 72 46 76 52 C 80 62 80 85 72 105 Z" fill="#FFFFFF" stroke="#1D1B20" stroke-width="3.5" stroke-linejoin="round"/>
+                        <path d="M 22 74 C 24 60 38 54 54 60 C 58 62 58 70 50 74 Z" fill="#FFFFFF" stroke="#1D1B20" stroke-width="3.5"/>
+                        <path d="M 76 52 L 70 65" fill="none" stroke="#1D1B20" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M 30 28 L 38 29 M 55 27 L 63 29" fill="none" stroke="#1D1B20" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
                 </div>
                 <div class="mt-2 text-center">
                     <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20] block">SCISSORS</span>
@@ -436,7 +268,7 @@
 
     <!-- Footer -->
     <footer class="w-full py-3 text-center text-xs text-md-secondary border-t border-md-outlineVariant/30">
-        Gyan Games Studio • WebRTC Direct P2P • Pure CSS Hand Gesture Engine
+        Gyan Games Studio • WebRTC Direct P2P • Connected Black Line Art Gestures
     </footer>
 
     <!-- =======================================================================
@@ -607,8 +439,8 @@
             }
             playSelect() { this.playTone(600, 'triangle', 0.08, 0.15); }
             playThrow() {
-                this.playTone(280, 'sine', 0.12, 0.25);
-                setTimeout(() => this.playTone(420, 'triangle', 0.15, 0.2), 120);
+                this.playTone(280, 'sine', 0.1, 0.22);
+                setTimeout(() => this.playTone(420, 'triangle', 0.12, 0.2), 100);
             }
             playWin() {
                 this.playTone(523, 'triangle', 0.12, 0.2);
@@ -624,7 +456,42 @@
         const sfx = new SoundEngine();
 
         /***********************************************************************
-         * 2. GLOBAL STATE & PEERJS NETWORKING
+         * 2. CONNECTED BLACK OUTLINE HAND ENGINE (Rock, Paper, Scissors)
+         ***********************************************************************/
+        function getRPSHandSVG(gesture) {
+            const stroke = '#1D1B20';
+            const fill = '#FFFFFF';
+            const sw = 3.5;
+
+            const svgs = {
+                rock: `
+                    <svg class="hand-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 32 105 C 24 105 20 85 20 65 C 20 46 28 38 38 40 C 44 36 54 36 58 40 C 62 36 72 38 76 44 C 80 50 80 85 72 105 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>
+                        <path d="M 20 72 C 22 55 36 50 54 55 C 60 58 60 68 52 72 C 38 76 28 80 20 72 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+                        <path d="M 38 40 L 40 55 M 58 40 L 56 55 M 76 44 L 70 58" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                `,
+                paper: `
+                    <svg class="hand-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 32 108 C 22 106 18 88 18 72 L 6 56 C 2 48 12 44 18 50 L 26 62 L 25 18 C 25 10 36 10 36 18 L 36 46 L 41 12 C 41 4 52 4 52 12 L 52 46 L 57 18 C 57 10 68 10 68 18 L 67 48 L 73 26 C 73 18 84 20 82 28 L 78 62 C 82 78 80 94 72 108 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>
+                        <path d="M 26 68 C 38 74 54 74 68 68" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
+                `,
+                scissors: `
+                    <svg class="hand-svg" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 32 105 C 24 105 22 85 24 65 L 28 16 C 28 8 40 8 41 16 L 43 45 L 53 14 C 55 6 67 8 65 17 L 59 46 C 64 44 72 46 76 52 C 80 62 80 85 72 105 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>
+                        <path d="M 22 74 C 24 60 38 54 54 60 C 58 62 58 70 50 74 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+                        <path d="M 76 52 L 70 65" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M 30 28 L 38 29 M 55 27 L 63 29" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
+                `
+            };
+
+            return svgs[gesture] || svgs.rock;
+        }
+
+        /***********************************************************************
+         * 3. GLOBAL STATE & PEERJS NETWORKING
          ***********************************************************************/
         const SITE_URL = 'https://gyan-games.vercel.app';
 
@@ -762,7 +629,6 @@
                     document.getElementById('multiplayer-modal').classList.add('hidden');
                     resetSeriesScores();
                 } else if (data.type === 'pick_locked') {
-                    // Opponent locked in their choice!
                     document.getElementById('p2-pick-label').textContent = 'LOCKED IN 🔒';
                     gameState.p2Pick = data.choice;
                     checkBothPlayersReady();
@@ -814,7 +680,7 @@
         }
 
         /***********************************************************************
-         * 3. GAMEPLAY ENGINE & SIMULTANEOUS RESOLUTION
+         * 4. GAMEPLAY ENGINE & SIMULTANEOUS RESOLUTION
          ***********************************************************************/
         function updateNamesDisplay() {
             document.getElementById('p1-name').textContent = gameState.p1Name;
@@ -837,11 +703,6 @@
             ).join('');
         }
 
-        function setHandGesture(handEl, gesture) {
-            handEl.classList.remove('gesture-rock', 'gesture-paper', 'gesture-scissors');
-            handEl.classList.add(`gesture-${gesture}`);
-        }
-
         // Handle user choice click
         document.querySelectorAll('.choice-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -861,7 +722,6 @@
                 } else {
                     // Bot generates choice instantly
                     const botChoices = ['rock', 'paper', 'scissors'];
-                    // Smart Bot slightly adapts to player patterns
                     gameState.p2Pick = botChoices[Math.floor(Math.random() * 3)];
                     document.getElementById('p2-pick-label').textContent = 'LOCKED IN 🔒';
                     checkBothPlayersReady();
@@ -885,34 +745,33 @@
             const p1Wrap = document.getElementById('p1-hand-wrapper');
             const p2Wrap = document.getElementById('p2-hand-wrapper');
 
-            // Reset hands to rock fist for the throw bounce
-            setHandGesture(p1Hand, 'rock');
-            setHandGesture(p2Hand, 'rock');
+            // Rapid 3-beat shake animation on closed fist
+            p1Hand.innerHTML = getRPSHandSVG('rock');
+            p2Hand.innerHTML = getRPSHandSVG('rock');
 
-            p1Wrap.classList.add('throw-anim');
-            p2Wrap.classList.add('throw-anim');
+            p1Wrap.classList.add('shake-throw');
+            p2Wrap.classList.add('shake-throw');
 
             // Mid-animation reveal
             setTimeout(() => {
-                setHandGesture(p1Hand, gameState.p1Pick);
-                setHandGesture(p2Hand, gameState.p2Pick);
+                p1Hand.innerHTML = getRPSHandSVG(gameState.p1Pick);
+                p2Hand.innerHTML = getRPSHandSVG(gameState.p2Pick);
 
                 document.getElementById('p1-pick-label').textContent = gameState.p1Pick.toUpperCase();
                 document.getElementById('p2-pick-label').textContent = gameState.p2Pick.toUpperCase();
 
                 evaluateOutcome(gameState.p1Pick, gameState.p2Pick);
-            }, 300);
+            }, 240);
 
-            // Clean up animation classes
             setTimeout(() => {
-                p1Wrap.classList.remove('throw-anim');
-                p2Wrap.classList.remove('throw-anim');
-            }, 600);
+                p1Wrap.classList.remove('shake-throw');
+                p2Wrap.classList.remove('shake-throw');
+            }, 500);
         }
 
         function evaluateOutcome(p1, p2) {
             const banner = document.getElementById('result-banner');
-            let outcome = 'draw'; // 'p1', 'p2', or 'draw'
+            let outcome = 'draw';
 
             if (p1 === p2) {
                 outcome = 'draw';
@@ -957,7 +816,7 @@
                 } else {
                     prepareNextRound();
                 }
-            }, 1400);
+            }, 1300);
         }
 
         function prepareNextRound() {
@@ -975,9 +834,8 @@
             const banner = document.getElementById('result-banner');
             banner.classList.add('opacity-0', 'scale-95');
 
-            // Reset hands to neutral fist
-            setHandGesture(document.getElementById('p1-hand'), 'rock');
-            setHandGesture(document.getElementById('p2-hand'), 'rock');
+            document.getElementById('p1-hand').innerHTML = getRPSHandSVG('rock');
+            document.getElementById('p2-hand').innerHTML = getRPSHandSVG('rock');
         }
 
         function showSeriesWinner() {
@@ -1015,8 +873,8 @@
 
             updateNamesDisplay();
             renderStarTrackers();
-            setHandGesture(document.getElementById('p1-hand'), 'rock');
-            setHandGesture(document.getElementById('p2-hand'), 'rock');
+            document.getElementById('p1-hand').innerHTML = getRPSHandSVG('rock');
+            document.getElementById('p2-hand').innerHTML = getRPSHandSVG('rock');
         }
 
         document.getElementById('btn-series-rematch').addEventListener('click', () => {
@@ -1036,7 +894,7 @@
         });
 
         /***********************************************************************
-         * 4. TOURNAMENT BRACKET SYSTEM (4-Player & 8-Player)
+         * 5. TOURNAMENT BRACKET SYSTEM (4-Player & 8-Player)
          ***********************************************************************/
         function initTournament() {
             gameState.tournament.matches = [
@@ -1126,7 +984,7 @@
         });
 
         /***********************************************************************
-         * 5. UI CONTROLS & URL AUTO-JOIN
+         * 6. UI CONTROLS & URL AUTO-JOIN
          ***********************************************************************/
         document.getElementById('btn-toggle-sound').addEventListener('click', () => {
             sfx.enabled = !sfx.enabled;
@@ -1204,6 +1062,9 @@
         // Auto-check URL for ?room=
         window.onload = function() {
             renderStarTrackers();
+            document.getElementById('p1-hand').innerHTML = getRPSHandSVG('rock');
+            document.getElementById('p2-hand').innerHTML = getRPSHandSVG('rock');
+
             const urlParams = new URLSearchParams(window.location.search);
             const roomParam = urlParams.get('room');
             if (roomParam) {
