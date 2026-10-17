@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chain Reaction | Gyan Games Studio</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0F172A',
+                        darkcard: '#1E293B',
+                        darkborder: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <!-- PeerJS & QRCode & Confetti -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Glowing Orbs & Atom Animations */
+        @keyframes orbRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .orb-group {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            animation: orbRotate 3s linear infinite;
+        }
+
+        .orb-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .grid-cell {
+            position: relative;
+            background: #1E293B;
+            border: 1px solid #334155;
+            transition: all 0.15s ease;
+        }
+        .grid-cell:hover {
+            background: #273549;
+        }
+
+        @keyframes explodePulse {
+            0% { transform: scale(0.6); opacity: 1; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        .cell-blast {
+            animation: explodePulse 0.22s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="w-full px-4 py-3 bg-darkcard/90 backdrop-blur-md border-b border-darkborder sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <a href="index.html" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-300 flex items-center justify-center transition-all shadow-sm" title="Back to Game Hub">
+                    <span class="material-symbols-rounded text-lg">arrow_back</span>
+                </a>
+                <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-500 to-cyan-500 text-white flex items-center justify-center shadow-md font-extrabold text-lg">
+                    ⚛️
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-extrabold text-sm sm:text-base tracking-tight text-white">Chain Reaction</h1>
+                        <button id="btn-player-count" class="text-[9px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-full hover:bg-slate-700 cursor-pointer">2 Players ▾</button>
+                    </div>
+                    <div class="text-[10px] text-slate-400 flex items-center gap-2">
+                        <span id="net-indicator" class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-slate-400" id="net-dot"></span>
+                            <span id="net-label">Pass & Play / Bot</span>
+                        </span>
+                        <span id="hud-room-code" class="hidden font-mono font-bold bg-slate-800 text-slate-300 px-1.5 rounded cursor-pointer" title="Click to copy Room Link">ROOM: ----</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <button id="btn-open-multiplayer" class="px-3.5 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition-all flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-rounded text-base">wifi</span>
+                    <span class="hidden sm:inline">Online Room</span>
+                </button>
+                <button id="btn-restart" class="p-2 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all" title="Restart Board">
+                    <span class="material-symbols-rounded text-base">refresh</span>
+                </button>
+                <button id="btn-toggle-sound" class="p-2 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all" title="Toggle Sound">
+                    <span class="material-symbols-rounded text-base" id="sound-icon">volume_up</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-4 flex-1 flex flex-col justify-center items-center">
+        
+        <!-- Active Turn Banner -->
+        <div class="w-full max-w-sm flex items-center justify-between p-3 rounded-2xl bg-darkcard border border-darkborder mb-3 shadow-md">
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full shadow-md" id="turn-orb-dot" style="background-color: #EF4444; box-shadow: 0 0 10px #EF4444;"></div>
+                <span class="font-extrabold text-xs" id="turn-player-name">Player 1's Turn</span>
+            </div>
+            <span class="text-[10px] font-mono font-bold text-slate-400" id="round-counter">ROUND 1</span>
+        </div>
+
+        <!-- The Chain Reaction Board Grid -->
+        <div class="p-2 bg-slate-900 rounded-3xl border-2 border-darkborder shadow-2xl overflow-hidden">
+            <div id="board-grid" class="grid gap-1">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-3 text-center text-xs text-slate-500 border-t border-darkborder">
+        Gyan Games Studio • Chain Reaction • Critical Mass Explosive Strategy
+    </footer>
+
+    <!-- Multiplayer Modal -->
+    <div id="multiplayer-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-darkborder pb-3">
+                <h3 class="font-extrabold text-base text-white">Online Chain Reaction</h3>
+                <button id="btn-close-multiplayer" class="p-1 rounded-full text-slate-400 hover:bg-slate-800">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+
+            <div class="flex rounded-full bg-slate-800 p-1 text-xs font-bold">
+                <button id="tab-host" class="flex-1 py-1.5 rounded-full bg-emerald-600 text-white transition-all">Host Room</button>
+                <button id="tab-join" class="flex-1 py-1.5 rounded-full text-slate-400 transition-all">Join Room</button>
+            </div>
+
+            <div id="view-host" class="space-y-4">
+                <div id="host-setup" class="space-y-3">
+                    <input type="text" id="host-name" value="Player 1" maxlength="12" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none">
+                    <button id="btn-create-room" class="w-full py-2.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-md">Create Room</button>
+                </div>
+                <div id="host-active" class="hidden space-y-3 text-center">
+                    <div class="p-3 bg-slate-900 rounded-2xl border border-slate-700">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Room Code</span>
+                        <span id="display-room-code" class="text-2xl font-mono font-extrabold text-emerald-400">----</span>
+                    </div>
+                    <div id="qrcode-box" class="flex justify-center p-2 bg-white rounded-2xl mx-auto w-32 h-32 items-center"></div>
+                    <div class="flex gap-2">
+                        <button id="btn-copy-code" class="flex-1 py-2 rounded-xl bg-slate-800 text-xs font-bold">Copy Code</button>
+                        <button id="btn-copy-link" class="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Copy Link</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-join" class="hidden space-y-3">
+                <input type="text" id="join-name" value="Player 2" maxlength="12" placeholder="Your Name" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none">
+                <input type="text" id="join-code" placeholder="CR-XXXX" maxlength="10" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-mono font-extrabold text-center uppercase text-white focus:outline-none">
+                <button id="btn-submit-join" class="w-full py-2.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-md">Join Match</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 rounded-full bg-emerald-950 text-emerald-400 mx-auto flex items-center justify-center text-3xl font-extrabold border-2 border-emerald-500">
+                🏆
+            </div>
+            <div>
+                <h3 class="text-lg font-extrabold text-white" id="winner-title">Player 1 Wins!</h3>
+                <p class="text-xs text-slate-400 mt-1">Total atom domination achieved!</p>
+            </div>
+            <button id="btn-victory-restart" class="w-full py-2.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-md">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const SITE_URL = 'https://gyan-games.vercel.app';
+
+        class SoundEngine {
+            constructor() { this.ctx = null; this.enabled = true; }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            playTone(freq, type = 'sine', duration = 0.08, gain = 0.2) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                g.gain.setValueAtTime(gain, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.connect(g);
+                g.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            playPop() { this.playTone(480, 'triangle', 0.06, 0.2); }
+            playBlast(pitchOffset = 0) {
+                this.playTone(320 + pitchOffset * 40, 'sine', 0.08, 0.25);
+            }
+            playWin() {
+                this.playTone(523, 'triangle', 0.1, 0.25);
+                setTimeout(() => this.playTone(659, 'triangle', 0.12, 0.25), 100);
+                setTimeout(() => this.playTone(784, 'triangle', 0.2, 0.3), 200);
+            }
+        }
+        const sfx = new SoundEngine();
+
+        // 8 vibrant player colors
+        const PLAYERS = [
+            { id: 0, name: 'Red', color: '#EF4444' },
+            { id: 1, name: 'Green', color: '#10B981' },
+            { id: 2, name: 'Blue', color: '#3B82F6' },
+            { id: 3, name: 'Yellow', color: '#F59E0B' },
+            { id: 4, name: 'Purple', color: '#8B5CF6' },
+            { id: 5, name: 'Cyan', color: '#06B6D4' },
+            { id: 6, name: 'Orange', color: '#F97316' },
+            { id: 7, name: 'White', color: '#F3F4F6' }
+        ];
+
+        const ROWS = 9;
+        const COLS = 6;
+
+        let activePlayersCount = 2;
+        let currentPlayerIndex = 0;
+        let board = []; // 2D array: { count: 0, owner: null }
+        let turnNumber = 1;
+        let isProcessing = false;
+        let eliminatedPlayers = new Set();
+        let netMode = 'local'; // 'local' or 'online'
+        let localPlayerId = 0;
+
+        class CRNetworkManager {
+            constructor() {
+                this.peer = null;
+                this.conn = null;
+                this.isHost = false;
+                this.roomCode = null;
+                this.isConnected = false;
+            }
+            generateCode() {
+                const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+                let c = 'CR-';
+                for (let i = 0; i < 4; i++) c += chars.charAt(Math.floor(Math.random() * chars.length));
+                return c;
+            }
+            initHost(name) {
+                this.isHost = true;
+                this.roomCode = this.generateCode();
+                PLAYERS[0].name = name;
+                netMode = 'online';
+                localPlayerId = 0;
+
+                const peerId = `cr-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+                this.peer = new Peer(peerId, { debug: 1 });
+
+                this.peer.on('open', () => {
+                    this.isConnected = true;
+                    document.getElementById('display-room-code').textContent = this.roomCode;
+                    renderQRCode(this.roomCode);
+                    document.getElementById('host-setup').classList.add('hidden');
+                    document.getElementById('host-active').classList.remove('hidden');
+                    updateHeaderNetUI(true, this.roomCode);
+                });
+                this.peer.on('connection', (c) => {
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+            initClient(code, name) {
+                this.isHost = false;
+                this.roomCode = code.toUpperCase();
+                PLAYERS[1].name = name;
+                netMode = 'online';
+                localPlayerId = 1;
+
+                const targetId = `cr-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+                this.peer = new Peer(null, { debug: 1 });
+
+                this.peer.on('open', () => {
+                    const c = this.peer.connect(targetId, { reliable: true });
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+            setupConnection() {
+                this.conn.on('open', () => {
+                    this.isConnected = true;
+                    updateHeaderNetUI(this.isHost, this.roomCode);
+                    if (this.isHost) {
+                        this.conn.send({ type: 'welcome', hostName: PLAYERS[0].name });
+                    } else {
+                        this.conn.send({ type: 'join_info', clientName: PLAYERS[1].name });
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                    }
+                });
+                this.conn.on('data', (d) => {
+                    if (d.type === 'welcome') {
+                        PLAYERS[0].name = d.hostName;
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                    } else if (d.type === 'join_info') {
+                        PLAYERS[1].name = d.clientName;
+                    } else if (d.type === 'move') {
+                        makeMove(d.r, d.c, false);
+                    } else if (d.type === 'restart') {
+                        initBoard();
+                    }
+                });
+            }
+            send(d) { if (this.conn && this.conn.open) this.conn.send(d); }
+        }
+        const net = new CRNetworkManager();
+
+        function getRoomShareUrl(code) { return `${SITE_URL}/chain-reaction.html?room=${encodeURIComponent(code)}`; }
+
+        function renderQRCode(code) {
+            const box = document.getElementById('qrcode-box');
+            box.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(box, { text: getRoomShareUrl(code), width: 110, height: 110 });
+            }
+        }
+
+        function updateHeaderNetUI(isOnline, code) {
+            const netLabel = document.getElementById('net-label');
+            const netDot = document.getElementById('net-dot');
+            const hudCode = document.getElementById('hud-room-code');
+            if (isOnline && code) {
+                netLabel.textContent = net.isHost ? 'Online (Host)' : 'Online (Peer)';
+                netDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                hudCode.textContent = `ROOM: ${code}`;
+                hudCode.classList.remove('hidden');
+            } else {
+                netLabel.textContent = 'Pass & Play / Bot';
+                netDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                hudCode.classList.add('hidden');
+            }
+        }
+
+        function getCriticalMass(r, c) {
+            let max = 4;
+            if (r === 0 || r === ROWS - 1) max--;
+            if (c === 0 || c === COLS - 1) max--;
+            return max;
+        }
+
+        function initBoard() {
+            board = [];
+            for (let r = 0; r < ROWS; r++) {
+                const row = [];
+                for (let c = 0; c < COLS; c++) {
+                    row.push({ count: 0, owner: null });
+                }
+                board.push(row);
+            }
+            currentPlayerIndex = 0;
+            turnNumber = 1;
+            isProcessing = false;
+            eliminatedPlayers.clear();
+            document.getElementById('victory-modal').classList.add('hidden');
+            renderBoardUI();
+            updateTurnBanner();
+        }
+
+        function renderBoardUI() {
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${r}-${c}`;
+                    cell.className = 'grid-cell w-11 h-11 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center cursor-pointer';
+                    cell.addEventListener('click', () => onCellClick(r, c));
+                    grid.appendChild(cell);
+                    renderCellContent(r, c);
+                }
+            }
+        }
+
+        function renderCellContent(r, c) {
+            const cellEl = document.getElementById(`cell-${r}-${c}`);
+            if (!cellEl) return;
+            const data = board[r][c];
+            cellEl.innerHTML = '';
+
+            if (data.count > 0 && data.owner !== null) {
+                const p = PLAYERS[data.owner];
+                const orbGroup = document.createElement('div');
+                orbGroup.className = 'orb-group flex items-center justify-center';
+
+                if (data.count === 1) {
+                    orbGroup.innerHTML = `<div class="orb-dot" style="background:${p.color}; color:${p.color}; top: 12px; left: 12px;"></div>`;
+                } else if (data.count === 2) {
+                    orbGroup.innerHTML = `
+                        <div class="orb-dot" style="background:${p.color}; color:${p.color}; top: 4px; left: 12px;"></div>
+                        <div class="orb-dot" style="background:${p.color}; color:${p.color}; bottom: 4px; left: 12px;"></div>
+                    `;
+                } else if (data.count >= 3) {
+                    orbGroup.innerHTML = `
+                        <div class="orb-dot" style="background:${p.color}; color:${p.color}; top: 3px; left: 12px;"></div>
+                        <div class="orb-dot" style="background:${p.color}; color:${p.color}; bottom: 5px; left: 5px;"></div>
+                        <div class="orb-dot" style="background:${p.color}; color:${p.color}; bottom: 5px; right: 5px;"></div>
+                    `;
+                }
+                cellEl.appendChild(orbGroup);
+            }
+        }
+
+        function updateTurnBanner() {
+            const p = PLAYERS[currentPlayerIndex];
+            const dot = document.getElementById('turn-orb-dot');
+            dot.style.backgroundColor = p.color;
+            dot.style.boxShadow = `0 0 12px ${p.color}`;
+            document.getElementById('turn-player-name').textContent = `${p.name}'s Turn`;
+            document.getElementById('round-counter').textContent = `ROUND ${turnNumber}`;
+        }
+
+        function onCellClick(r, c) {
+            if (isProcessing) return;
+            if (netMode === 'online' && currentPlayerIndex !== localPlayerId) return;
+
+            const cell = board[r][c];
+            // Cell must be unowned or owned by current player
+            if (cell.owner !== null && cell.owner !== currentPlayerIndex) {
+                return;
+            }
+
+            if (netMode === 'online') {
+                net.send({ type: 'move', r: r, c: c });
+            }
+            makeMove(r, c, true);
+        }
+
+        async function makeMove(r, c, isLocal) {
+            isProcessing = true;
+            sfx.playPop();
+
+            board[r][c].count++;
+            board[r][c].owner = currentPlayerIndex;
+            renderCellContent(r, c);
+
+            await resolveExplosions();
+
+            checkEliminations();
+            if (checkWinner()) {
+                isProcessing = false;
+                return;
+            }
+
+            advanceTurn();
+            isProcessing = false;
+        }
+
+        async function resolveExplosions() {
+            let explosionsPending = true;
+            let cascadeLevel = 0;
+
+            while (explosionsPending) {
+                explosionsPending = false;
+                const toExplode = [];
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const crit = getCriticalMass(r, c);
+                        if (board[r][c].count >= crit) {
+                            toExplode.push({ r, c, crit });
+                            explosionsPending = true;
+                        }
+                    }
+                }
+
+                if (explosionsPending) {
+                    sfx.playBlast(Math.min(cascadeLevel++, 10));
+                    toExplode.forEach(item => {
+                        board[item.r][item.c].count -= item.crit;
+                        if (board[item.r][item.c].count === 0) {
+                            board[item.r][item.c].owner = null;
+                        }
+
+                        // Neighbors
+                        const neighbors = [
+                            { r: item.r - 1, c: item.c },
+                            { r: item.r + 1, c: item.c },
+                            { r: item.r, c: item.c - 1 },
+                            { r: item.r, c: item.c + 1 }
+                        ];
+
+                        neighbors.forEach(n => {
+                            if (n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS) {
+                                board[n.r][n.c].count++;
+                                board[n.r][n.c].owner = currentPlayerIndex; // captured!
+                            }
+                        });
+                    });
+
+                    // Update UI after cascade step
+                    for (let r = 0; r < ROWS; r++) {
+                        for (let c = 0; c < COLS; c++) {
+                            renderCellContent(r, c);
+                        }
+                    }
+
+                    await new Promise(res => setTimeout(res, 180));
+                }
+            }
+        }
+
+        function checkEliminations() {
+            // After everyone has had at least 1 turn
+            if (turnNumber <= 1) return;
+
+            for (let i = 0; i < activePlayersCount; i++) {
+                if (eliminatedPlayers.has(i)) continue;
+                let hasOrbs = false;
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (board[r][c].owner === i) {
+                            hasOrbs = true;
+                            break;
+                        }
+                    }
+                    if (hasOrbs) break;
+                }
+                if (!hasOrbs) {
+                    eliminatedPlayers.add(i);
+                }
+            }
+        }
+
+        function checkWinner() {
+            if (turnNumber <= 1) return false;
+            const remaining = [];
+            for (let i = 0; i < activePlayersCount; i++) {
+                if (!eliminatedPlayers.has(i)) remaining.push(i);
+            }
+            if (remaining.length === 1) {
+                const winner = PLAYERS[remaining[0]];
+                sfx.playWin();
+                document.getElementById('winner-title').textContent = `🏆 ${winner.name} Wins!`;
+                document.getElementById('victory-modal').classList.remove('hidden');
+                if (typeof confetti !== 'undefined') confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+                return true;
+            }
+            return false;
+        }
+
+        function advanceTurn() {
+            let next = (currentPlayerIndex + 1) % activePlayersCount;
+            while (eliminatedPlayers.has(next)) {
+                next = (next + 1) % activePlayersCount;
+            }
+            if (next <= currentPlayerIndex) {
+                turnNumber++;
+            }
+            currentPlayerIndex = next;
+            updateTurnBanner();
+        }
+
+        // Cycle player count (2 to 8)
+        document.getElementById('btn-player-count').addEventListener('click', () => {
+            let next = activePlayersCount + 1;
+            if (next > 8) next = 2;
+            activePlayersCount = next;
+            document.getElementById('btn-player-count').textContent = `${next} Players ▾`;
+            initBoard();
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            initBoard();
+            if (netMode === 'online') net.send({ type: 'restart' });
+        });
+
+        document.getElementById('btn-victory-restart').addEventListener('click', () => {
+            initBoard();
+            if (netMode === 'online') net.send({ type: 'restart' });
+        });
+
+        document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('sound-icon').textContent = sfx.enabled ? 'volume_up' : 'volume_off';
+        });
+
+        // Online Modal
+        document.getElementById('btn-open-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.remove('hidden');
+            document.getElementById('multiplayer-modal').classList.add('flex');
+        });
+        document.getElementById('btn-close-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.add('hidden');
+            document.getElementById('multiplayer-modal').classList.remove('flex');
+        });
+        document.getElementById('tab-host').addEventListener('click', () => {
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full bg-emerald-600 text-white transition-all';
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full text-slate-400 transition-all';
+            document.getElementById('view-host').classList.remove('hidden');
+            document.getElementById('view-join').classList.add('hidden');
+        });
+        document.getElementById('tab-join').addEventListener('click', () => {
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full bg-emerald-600 text-white transition-all';
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full text-slate-400 transition-all';
+            document.getElementById('view-join').classList.remove('hidden');
+            document.getElementById('view-host').classList.add('hidden');
+        });
+        document.getElementById('btn-create-room').addEventListener('click', () => {
+            const name = document.getElementById('host-name').value.trim() || 'Player 1';
+            net.initHost(name);
+        });
+        document.getElementById('btn-submit-join').addEventListener('click', () => {
+            const code = document.getElementById('join-code').value.trim().toUpperCase();
+            const name = document.getElementById('join-name').value.trim() || 'Player 2';
+            if (code) net.initClient(code, name);
+        });
+        document.getElementById('btn-copy-code').addEventListener('click', () => {
+            if (net.roomCode) navigator.clipboard.writeText(net.roomCode);
+        });
+        document.getElementById('btn-copy-link').addEventListener('click', () => {
+            if (net.roomCode) navigator.clipboard.writeText(getRoomShareUrl(net.roomCode));
+        });
+
+        window.onload = function() {
+            initBoard();
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = urlParams.get('room');
+            if (room) {
+                document.getElementById('join-code').value = room;
+                document.getElementById('multiplayer-modal').classList.remove('hidden');
+                document.getElementById('multiplayer-modal').classList.add('flex');
+                document.getElementById('tab-join').click();
+            }
+        };
+    </script>
+</body>
+</html>

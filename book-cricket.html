@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Book Cricket 3D | Gyan Games Studio</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        md: {
+                            primary: '#855318',          /* Classic Leather Book Amber */
+                            onPrimary: '#FFFFFF',
+                            primaryContainer: '#FFDDB8',
+                            onPrimaryContainer: '#2B1700',
+                            surface: '#FFF8F4',
+                            surfaceHighest: '#F0E0D0',
+                            outlineVariant: '#D5C4B4',
+                            secondary: '#6E5B49',
+                            turf: '#006C4C'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Cinzel:wght@700;800&display=swap" rel="stylesheet">
+
+    <!-- PeerJS & QRCode & Confetti -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-title { font-family: 'Cinzel', serif; }
+
+        .md3-card-elevated {
+            background: #FFFFFF;
+            box-shadow: 0 4px 24px -2px rgba(43, 23, 0, 0.12), 0 2px 8px -2px rgba(43, 23, 0, 0.06);
+            border: 1px solid rgba(255, 221, 184, 0.5);
+        }
+
+        /* 3D Book Container */
+        .book-stage {
+            perspective: 1200px;
+        }
+
+        .book-wrapper {
+            position: relative;
+            width: 320px;
+            height: 220px;
+            transform-style: preserve-3d;
+            box-shadow: 0 16px 40px rgba(43, 23, 0, 0.22);
+            border-radius: 12px;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @media (min-width: 640px) {
+            .book-wrapper {
+                width: 440px;
+                height: 280px;
+            }
+        }
+
+        .page-left, .page-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50%;
+            background: #FFFDF9;
+            background-image: 
+                linear-gradient(to right, rgba(0,0,0,0.05) 0%, transparent 15%),
+                repeating-linear-gradient(transparent, transparent 18px, rgba(110, 91, 73, 0.08) 19px, rgba(110, 91, 73, 0.08) 20px);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .page-left {
+            left: 0;
+            border-radius: 8px 0 0 8px;
+            border-right: 2px solid #E8DACB;
+            box-shadow: inset -10px 0 20px -8px rgba(0,0,0,0.12);
+        }
+
+        .page-right {
+            right: 0;
+            border-radius: 0 8px 8px 0;
+            border-left: 2px solid #E8DACB;
+            box-shadow: inset 10px 0 20px -8px rgba(0,0,0,0.12);
+        }
+
+        .page-flip-leaf {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100%;
+            background: #FFFDF9;
+            transform-origin: left center;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            display: none;
+            z-index: 10;
+        }
+
+        @keyframes pageFlipAnim {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(-90deg) scale(1.04); }
+            100% { transform: rotateY(-180deg); }
+        }
+
+        .flipping {
+            display: block;
+            animation: pageFlipAnim 0.42s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-[#F8F3ED] text-[#1D1B20] min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Top Header -->
+    <header class="w-full px-4 py-3 bg-white/85 backdrop-blur-md border-b border-md-outlineVariant/40 sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <a href="index.html" class="w-9 h-9 rounded-full bg-md-surfaceHighest hover:bg-md-primary hover:text-white text-md-secondary flex items-center justify-center transition-all shadow-sm" title="Back to Game Hub">
+                    <span class="material-symbols-rounded text-lg">arrow_back</span>
+                </a>
+                <div class="w-9 h-9 rounded-2xl bg-md-primary text-white flex items-center justify-center shadow-md font-extrabold text-sm font-title">
+                    📖
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-extrabold text-sm sm:text-base tracking-tight text-[#1D1B20]">Book Cricket 3D</h1>
+                        <span id="badge-overs" class="text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full cursor-pointer hover:bg-amber-200">1 Wicket ▾</span>
+                    </div>
+                    <div class="text-[10px] text-md-secondary flex items-center gap-2">
+                        <span id="net-indicator" class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-slate-400" id="net-dot"></span>
+                            <span id="net-label">Solo Practice</span>
+                        </span>
+                        <span id="hud-room-code" class="hidden font-mono font-bold bg-slate-200 text-slate-800 px-1.5 rounded cursor-pointer hover:bg-slate-300" title="Click to copy Room Link">ROOM: ----</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <button id="btn-open-multiplayer" class="px-3.5 py-1.5 rounded-full bg-md-primary text-white text-xs font-bold hover:bg-[#683F10] transition-all flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-rounded text-base">wifi</span>
+                    <span class="hidden sm:inline">Online Room</span>
+                </button>
+                <button id="btn-open-rules" class="p-2 rounded-full bg-md-surfaceHighest text-md-secondary hover:bg-gray-200 transition-all" title="View Cricket Rules">
+                    <span class="material-symbols-rounded text-base">help</span>
+                </button>
+                <button id="btn-toggle-sound" class="p-2 rounded-full bg-md-surfaceHighest text-md-secondary hover:bg-gray-200 transition-all" title="Toggle Sound">
+                    <span class="material-symbols-rounded text-base" id="sound-icon">volume_up</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-4 sm:py-6 flex-1 flex flex-col justify-center items-center">
+        
+        <!-- Scoreboard Header -->
+        <div class="w-full max-w-xl md3-card-elevated rounded-3xl p-4 sm:p-5 mb-4 sm:mb-6 shadow-md border border-amber-200">
+            <div class="flex items-center justify-between text-center">
+                
+                <!-- Batter Info -->
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-extrabold text-base shadow-md ring-4 ring-amber-100 mb-1" id="batter-avatar">
+                        YOU
+                    </div>
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20]" id="batter-name">Player 1</span>
+                    <span class="text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-full mt-0.5" id="batter-role-tag">BATTING</span>
+                </div>
+
+                <!-- Match Runs, Balls & Target -->
+                <div class="px-4 flex flex-col items-center">
+                    <span class="text-[10px] uppercase font-mono font-extrabold tracking-wider text-md-secondary" id="innings-tracker">INNINGS 1</span>
+                    <div class="text-3xl sm:text-4xl font-mono font-extrabold text-[#1D1B20] tracking-tight my-0.5">
+                        <span id="score-runs" class="text-amber-800">0</span>
+                        <span class="text-gray-300 text-2xl font-normal mx-0.5">/</span>
+                        <span id="score-wickets" class="text-rose-600">0</span>
+                    </div>
+                    <div class="text-[11px] font-mono text-gray-500 font-bold" id="balls-tracker">
+                        Balls: 0 • Target: --
+                    </div>
+                </div>
+
+                <!-- Opponent Info -->
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-2xl bg-gray-600 text-white flex items-center justify-center font-extrabold text-base shadow-md ring-4 ring-gray-100 mb-1" id="bowler-avatar">
+                        BOT
+                    </div>
+                    <span class="font-extrabold text-xs sm:text-sm text-[#1D1B20]" id="bowler-name">Cyber Bot</span>
+                    <span class="text-[10px] font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded-full mt-0.5" id="bowler-role-tag">BOWLING</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D Textbook Arena -->
+        <div class="book-stage flex flex-col items-center my-2 sm:my-4 relative">
+            
+            <!-- Result Banner -->
+            <div id="commentary-banner" class="absolute -top-7 z-20 px-4 py-1 rounded-full text-xs font-extrabold shadow-md transition-all duration-300 transform scale-95 opacity-0 pointer-events-none">
+                PAGE FLIPPED!
+            </div>
+
+            <!-- The 3D Book -->
+            <div class="book-wrapper border-4 border-amber-900/80 bg-amber-950" id="book-body">
+                
+                <!-- Left Page -->
+                <div class="page-left">
+                    <div class="text-[9px] font-bold text-amber-950/60 uppercase tracking-widest flex justify-between">
+                        <span>Chapter VII</span>
+                        <span>Classroom Stories</span>
+                    </div>
+                    <div class="space-y-1.5 opacity-60 text-[9px] leading-tight text-amber-900 hidden sm:block">
+                        <p>The bell rang sharply as the monsoon rain pounded against the classroom window pane...</p>
+                        <p>Hidden inside the heavy history textbook lay the secret scorecard of champions...</p>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="font-mono text-xs font-bold text-amber-900/60" id="left-page-num">248</span>
+                        <span class="text-[8px] uppercase tracking-wider text-amber-900/40">NCERT</span>
+                    </div>
+                </div>
+
+                <!-- Right Page (The Landing Number Page) -->
+                <div class="page-right">
+                    <div class="text-[9px] font-bold text-amber-950/60 uppercase tracking-widest flex justify-between">
+                        <span>Principles of Friction</span>
+                        <span>Sec. 4</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center flex-1 my-2">
+                        <span class="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">OUTCOME</span>
+                        <div class="text-4xl sm:text-5xl font-mono font-extrabold text-[#1D1B20] my-1" id="big-outcome-digit">
+                            --
+                        </div>
+                        <span class="text-[9px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full" id="digit-label">Flip to Play</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-[8px] uppercase tracking-wider text-amber-900/40">Gyan Studio</span>
+                        <span class="font-mono text-base font-extrabold text-amber-950" id="right-page-num">249</span>
+                    </div>
+                </div>
+
+                <!-- Flip Animated Leaf -->
+                <div class="page-flip-leaf" id="flip-leaf"></div>
+            </div>
+
+            <!-- Flip Action Button -->
+            <button id="btn-flip-page" class="mt-6 sm:mt-8 px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-800 to-amber-950 hover:from-amber-900 hover:to-black active:scale-95 text-white font-extrabold text-sm shadow-xl flex items-center gap-2 transition-all">
+                <span class="material-symbols-rounded text-xl">auto_stories</span>
+                <span id="flip-btn-text">FLIP PAGE NOW!</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-3 text-center text-xs text-md-secondary border-t border-md-outlineVariant/30">
+        Gyan Games Studio • Book Cricket 3D • The Iconic Classroom Textbook Flip Game
+    </footer>
+
+    <!-- Rules Modal -->
+    <div id="rules-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="md3-card-elevated rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-extrabold text-base text-[#1D1B20]">Book Cricket Rules</h3>
+                <button id="btn-close-rules" class="p-1 rounded-full text-gray-400 hover:bg-gray-100">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            
+            <div class="space-y-3 text-xs leading-relaxed text-gray-600">
+                <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-1.5 text-amber-900">
+                    <p><strong>📖 How Runs are Scored:</strong> The <strong>LAST DIGIT</strong> of the right-hand page determines the ball outcome:</p>
+                    <ul class="list-disc list-inside space-y-1 text-amber-800">
+                        <li><strong>1, 2, 3, 4, 5, 6:</strong> Standard runs scored!</li>
+                        <li><strong>8:</strong> Double boundary blast (+8 Runs)!</li>
+                        <li><strong>0:</strong> <strong>OUT!</strong> (Bowled or caught behind)</li>
+                        <li><strong>7:</strong> Wide ball (+1 Run & Extra Ball!)</li>
+                        <li><strong>9:</strong> No ball (+1 Run & Free Hit next ball!)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multiplayer Modal -->
+    <div id="multiplayer-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="md3-card-elevated rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+            <div class="px-5 py-4 bg-md-surface border-b flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-rounded text-xl text-md-primary">wifi</span>
+                    <h3 class="font-extrabold text-base text-[#1D1B20]">Online Book Cricket</h3>
+                </div>
+                <button id="btn-close-multiplayer" class="p-1.5 rounded-full hover:bg-gray-100 text-gray-500">
+                    <span class="material-symbols-rounded text-lg">close</span>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div class="flex rounded-full bg-md-surfaceHighest p-1 text-xs font-bold">
+                    <button id="tab-host" class="flex-1 py-1.5 rounded-full bg-md-primary text-white transition-all">Host Room</button>
+                    <button id="tab-join" class="flex-1 py-1.5 rounded-full text-md-secondary transition-all">Join Room</button>
+                </div>
+
+                <div id="view-host" class="space-y-4">
+                    <div id="host-setup" class="space-y-3">
+                        <div>
+                            <label class="text-[10px] font-extrabold uppercase text-gray-500 block mb-1">Your Name</label>
+                            <input type="text" id="host-name" value="Captain 1" maxlength="12" class="w-full px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none">
+                        </div>
+                        <button id="btn-create-room" class="w-full py-2.5 rounded-full bg-md-primary text-white text-xs font-bold shadow-md">
+                            Create Room
+                        </button>
+                    </div>
+
+                    <div id="host-active" class="hidden space-y-3 text-center">
+                        <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200">
+                            <span class="text-[10px] uppercase font-bold text-amber-800 block">Room Code</span>
+                            <span id="display-room-code" class="text-2xl font-mono font-extrabold text-[#1D1B20]">----</span>
+                        </div>
+                        <div id="qrcode-box" class="flex justify-center p-2 bg-white rounded-2xl border mx-auto w-32 h-32 items-center"></div>
+                        <div class="flex gap-2">
+                            <button id="btn-copy-code" class="flex-1 py-2 rounded-xl bg-gray-100 text-xs font-bold">Copy Code</button>
+                            <button id="btn-copy-link" class="flex-1 py-2 rounded-xl bg-md-primary text-white text-xs font-bold">Copy Link</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-join" class="hidden space-y-3">
+                    <input type="text" id="join-name" value="Challenger" maxlength="12" placeholder="Your Name" class="w-full px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none">
+                    <input type="text" id="join-code" placeholder="BC-XXXX" maxlength="10" class="w-full px-3 py-2 rounded-xl border text-xs font-mono font-extrabold text-center uppercase focus:outline-none">
+                    <button id="btn-submit-join" class="w-full py-2.5 rounded-full bg-md-primary text-white text-xs font-bold shadow-md">
+                        Join Match
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Over Modal -->
+    <div id="match-over-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="md3-card-elevated rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border-2 border-amber-400">
+            <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-800 mx-auto flex items-center justify-center text-3xl font-extrabold">
+                🏆
+            </div>
+            <div>
+                <h3 class="text-lg font-extrabold text-[#1D1B20]" id="match-modal-title">Innings Complete!</h3>
+                <p class="text-xs text-gray-500 mt-1" id="match-modal-sub">Target set for the chase!</p>
+            </div>
+            <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200 flex justify-around font-mono font-extrabold text-lg">
+                <div>
+                    <span class="text-[10px] text-gray-500 block">INNINGS 1</span>
+                    <span id="modal-inn1-score" class="text-amber-800">0</span>
+                </div>
+                <div class="text-gray-300">|</div>
+                <div>
+                    <span class="text-[10px] text-gray-500 block">INNINGS 2</span>
+                    <span id="modal-inn2-score" class="text-rose-600">--</span>
+                </div>
+            </div>
+            <button id="btn-modal-action" class="w-full py-3 rounded-full bg-md-primary text-white text-xs font-bold shadow-md">
+                Start Second Innings
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const SITE_URL = 'https://gyan-games.vercel.app';
+
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            playTone(freq, type = 'sine', duration = 0.1, gain = 0.2) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                g.gain.setValueAtTime(gain, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.connect(g);
+                g.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            playPageFlip() {
+                this.playTone(180, 'sine', 0.08, 0.15);
+                setTimeout(() => this.playTone(340, 'triangle', 0.1, 0.2), 60);
+            }
+            playRun() { this.playTone(520, 'triangle', 0.1, 0.2); }
+            playBoundary() {
+                this.playTone(587, 'triangle', 0.1, 0.2);
+                setTimeout(() => this.playTone(784, 'triangle', 0.18, 0.25), 100);
+            }
+            playOut() {
+                this.playTone(280, 'sawtooth', 0.18, 0.25);
+                setTimeout(() => this.playTone(180, 'sawtooth', 0.3, 0.2), 120);
+            }
+        }
+        const sfx = new SoundEngine();
+
+        const gameState = {
+            netMode: 'bot',
+            innings: 1,
+            inn1Score: 0,
+            inn2Score: 0,
+            target: null,
+            balls: 0,
+            isFlipping: false,
+            p1Name: 'Player 1',
+            p2Name: 'Cyber Bot',
+            userRole: 'bat'
+        };
+
+        class BookCricketNetworkManager {
+            constructor() {
+                this.peer = null;
+                this.conn = null;
+                this.isHost = false;
+                this.roomCode = null;
+                this.isConnected = false;
+            }
+            generateCode() {
+                const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+                let c = 'BC-';
+                for (let i = 0; i < 4; i++) c += chars.charAt(Math.floor(Math.random() * chars.length));
+                return c;
+            }
+            initHost(name) {
+                this.isHost = true;
+                this.roomCode = this.generateCode();
+                gameState.p1Name = name;
+                gameState.netMode = 'online';
+
+                const peerId = `bc-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+                this.peer = new Peer(peerId, { debug: 1 });
+
+                this.peer.on('open', () => {
+                    this.isConnected = true;
+                    document.getElementById('display-room-code').textContent = this.roomCode;
+                    renderQRCode(this.roomCode);
+                    document.getElementById('host-setup').classList.add('hidden');
+                    document.getElementById('host-active').classList.remove('hidden');
+                    updateHeaderNetUI(true, this.roomCode);
+                });
+                this.peer.on('connection', (c) => {
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+            initClient(code, name) {
+                this.isHost = false;
+                this.roomCode = code.toUpperCase();
+                gameState.p2Name = name;
+                gameState.netMode = 'online';
+
+                const targetId = `bc-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+                this.peer = new Peer(null, { debug: 1 });
+
+                this.peer.on('open', () => {
+                    const c = this.peer.connect(targetId, { reliable: true });
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+            setupConnection() {
+                this.conn.on('open', () => {
+                    this.isConnected = true;
+                    updateHeaderNetUI(this.isHost, this.roomCode);
+                    if (this.isHost) {
+                        this.conn.send({ type: 'welcome', hostName: gameState.p1Name });
+                    } else {
+                        this.conn.send({ type: 'join_info', clientName: gameState.p2Name });
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                    }
+                });
+                this.conn.on('data', (d) => {
+                    if (d.type === 'welcome') {
+                        gameState.p1Name = d.hostName;
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                        updateRoleCards();
+                    } else if (d.type === 'join_info') {
+                        gameState.p2Name = d.clientName;
+                        updateRoleCards();
+                    } else if (d.type === 'remote_flip') {
+                        executePageFlip(d.pageNum);
+                    } else if (d.type === 'innings_swap') {
+                        startSecondInnings();
+                    } else if (d.type === 'rematch') {
+                        resetMatch();
+                    }
+                });
+            }
+            send(d) { if (this.conn && this.conn.open) this.conn.send(d); }
+        }
+        const net = new BookCricketNetworkManager();
+
+        function getRoomShareUrl(code) { return `${SITE_URL}/book-cricket.html?room=${encodeURIComponent(code)}`; }
+
+        function renderQRCode(code) {
+            const box = document.getElementById('qrcode-box');
+            box.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(box, { text: getRoomShareUrl(code), width: 110, height: 110 });
+            }
+        }
+
+        function updateHeaderNetUI(isOnline, code) {
+            const netLabel = document.getElementById('net-label');
+            const netDot = document.getElementById('net-dot');
+            const hudCode = document.getElementById('hud-room-code');
+            if (isOnline && code) {
+                netLabel.textContent = net.isHost ? 'Online (Host)' : 'Online (Peer)';
+                netDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                hudCode.textContent = `ROOM: ${code}`;
+                hudCode.classList.remove('hidden');
+            } else {
+                netLabel.textContent = 'Solo Practice';
+                netDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                hudCode.classList.add('hidden');
+            }
+            updateRoleCards();
+        }
+
+        function updateRoleCards() {
+            const isLocalBatting = (gameState.innings === 1 && gameState.userRole === 'bat') ||
+                                   (gameState.innings === 2 && gameState.userRole === 'bowl');
+
+            document.getElementById('batter-name').textContent = isLocalBatting ? gameState.p1Name : gameState.p2Name;
+            document.getElementById('bowler-name').textContent = isLocalBatting ? gameState.p2Name : gameState.p1Name;
+            document.getElementById('flip-btn-text').textContent = isLocalBatting ? 'FLIP PAGE NOW!' : 'WAITING FOR BATTER...';
+            document.getElementById('btn-flip-page').disabled = !isLocalBatting && gameState.netMode === 'online';
+        }
+
+        function handleFlipClick() {
+            if (gameState.isFlipping) return;
+            const randomPage = Math.floor(Math.random() * 240) * 2 + 10; // even page number (e.g. 10 to 490)
+            const rightPage = randomPage + 1;
+
+            if (gameState.netMode === 'online') {
+                net.send({ type: 'remote_flip', pageNum: rightPage });
+            }
+            executePageFlip(rightPage);
+        }
+
+        function executePageFlip(rightPageNum) {
+            gameState.isFlipping = true;
+            sfx.playPageFlip();
+
+            const leaf = document.getElementById('flip-leaf');
+            leaf.classList.add('flipping');
+
+            setTimeout(() => {
+                document.getElementById('left-page-num').textContent = rightPageNum - 1;
+                document.getElementById('right-page-num').textContent = rightPageNum;
+
+                const lastDigit = rightPageNum % 10;
+                document.getElementById('big-outcome-digit').textContent = `${lastDigit}`;
+                evaluateOutcome(lastDigit);
+            }, 210);
+
+            setTimeout(() => {
+                leaf.classList.remove('flipping');
+                gameState.isFlipping = false;
+            }, 450);
+        }
+
+        function evaluateOutcome(digit) {
+            gameState.balls++;
+            const banner = document.getElementById('commentary-banner');
+            const digitLabel = document.getElementById('digit-label');
+            banner.classList.remove('opacity-0', 'scale-95', 'bg-emerald-100', 'text-emerald-900', 'bg-rose-100', 'text-rose-900', 'bg-amber-100', 'text-amber-900');
+
+            if (digit === 0) {
+                // OUT!
+                sfx.playOut();
+                digitLabel.textContent = 'BOWLED OUT! 💀';
+                banner.textContent = 'OUT! Landed on 0! Caught at slip!';
+                banner.classList.add('bg-rose-100', 'text-rose-900', 'opacity-100', 'scale-100');
+                document.getElementById('score-wickets').textContent = '1';
+
+                setTimeout(() => {
+                    if (gameState.innings === 1) endFirstInnings();
+                    else finishMatch(false);
+                }, 1200);
+            } else if (digit === 7) {
+                // Wide Ball (+1 & Extra Ball)
+                sfx.playRun();
+                gameState.balls--; // free ball
+                addRuns(1);
+                digitLabel.textContent = 'WIDE BALL (+1)';
+                banner.textContent = 'Wide ball called! +1 Run & Extra delivery!';
+                banner.classList.add('bg-amber-100', 'text-amber-900', 'opacity-100', 'scale-100');
+            } else if (digit === 9) {
+                // No Ball (+1 & Free Hit)
+                sfx.playRun();
+                gameState.balls--;
+                addRuns(1);
+                digitLabel.textContent = 'NO BALL (+1 FREE HIT)';
+                banner.textContent = 'NO BALL! Overstep! +1 Run & Free Hit next ball!';
+                banner.classList.add('bg-amber-100', 'text-amber-900', 'opacity-100', 'scale-100');
+            } else {
+                // Runs 1, 2, 3, 4, 5, 6, 8
+                if (digit === 4 || digit === 6 || digit === 8) sfx.playBoundary(); else sfx.playRun();
+                addRuns(digit);
+                digitLabel.textContent = `+${digit} RUNS!`;
+                banner.textContent = digit >= 6 ? `🔥 BOUNDARY CRACK! +${digit} Runs!` : `Single rotated! +${digit} Runs.`;
+                banner.classList.add('bg-emerald-100', 'text-emerald-900', 'opacity-100', 'scale-100');
+            }
+        }
+
+        function addRuns(r) {
+            if (gameState.innings === 1) {
+                gameState.inn1Score += r;
+                document.getElementById('score-runs').textContent = gameState.inn1Score;
+            } else {
+                gameState.inn2Score += r;
+                document.getElementById('score-runs').textContent = gameState.inn2Score;
+                if (gameState.inn2Score >= gameState.target) {
+                    setTimeout(() => finishMatch(true), 1100);
+                    return;
+                }
+            }
+            document.getElementById('balls-tracker').textContent =
+                `Balls: ${gameState.balls} • ${gameState.target ? 'Target: ' + gameState.target : '1st Innings'}`;
+        }
+
+        function endFirstInnings() {
+            gameState.target = gameState.inn1Score + 1;
+            document.getElementById('match-modal-title').textContent = '1st Innings Complete!';
+            document.getElementById('match-modal-sub').textContent = `Target set: ${gameState.target} Runs to win!`;
+            document.getElementById('modal-inn1-score').textContent = `${gameState.inn1Score}`;
+            document.getElementById('modal-inn2-score').textContent = 'Chasing...';
+            document.getElementById('btn-modal-action').textContent = 'Begin 2nd Innings';
+            document.getElementById('match-over-modal').classList.remove('hidden');
+            document.getElementById('match-over-modal').classList.add('flex');
+        }
+
+        function startSecondInnings() {
+            gameState.innings = 2;
+            gameState.balls = 0;
+            gameState.inn2Score = 0;
+            document.getElementById('innings-tracker').textContent = 'INNINGS 2 (CHASE)';
+            document.getElementById('score-runs').textContent = '0';
+            document.getElementById('score-wickets').textContent = '0';
+            document.getElementById('match-over-modal').classList.add('hidden');
+            document.getElementById('match-over-modal').classList.remove('flex');
+
+            updateRoleCards();
+            document.getElementById('balls-tracker').textContent = `Balls: 0 • Target: ${gameState.target}`;
+        }
+
+        function finishMatch(chased) {
+            document.getElementById('match-over-modal').classList.remove('hidden');
+            document.getElementById('match-over-modal').classList.add('flex');
+
+            const isLocalBattingInn2 = (gameState.innings === 2 && gameState.userRole === 'bowl');
+            const winner = chased ? (isLocalBattingInn2 ? gameState.p1Name : gameState.p2Name)
+                                  : (isLocalBattingInn2 ? gameState.p2Name : gameState.p1Name);
+
+            document.getElementById('match-modal-title').textContent = `🏆 ${winner} Wins!`;
+            document.getElementById('match-modal-sub').textContent = chased ? 'Chased down target!' : 'Bowled out!';
+            document.getElementById('modal-inn1-score').textContent = `${gameState.inn1Score}`;
+            document.getElementById('modal-inn2-score').textContent = `${gameState.inn2Score}`;
+            document.getElementById('btn-modal-action').textContent = 'New Match';
+
+            if (typeof confetti !== 'undefined') confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
+        }
+
+        function resetMatch() {
+            gameState.innings = 1;
+            gameState.inn1Score = 0;
+            gameState.inn2Score = 0;
+            gameState.target = null;
+            gameState.balls = 0;
+            document.getElementById('innings-tracker').textContent = 'INNINGS 1';
+            document.getElementById('score-runs').textContent = '0';
+            document.getElementById('score-wickets').textContent = '0';
+            document.getElementById('match-over-modal').classList.add('hidden');
+            document.getElementById('match-over-modal').classList.remove('flex');
+            document.getElementById('balls-tracker').textContent = 'Balls: 0 • Target: --';
+            document.getElementById('big-outcome-digit').textContent = '--';
+            document.getElementById('digit-label').textContent = 'Flip to Play';
+            updateRoleCards();
+        }
+
+        document.getElementById('btn-modal-action').addEventListener('click', () => {
+            if (gameState.innings === 1) {
+                startSecondInnings();
+                if (gameState.netMode === 'online') net.send({ type: 'innings_swap' });
+            } else {
+                resetMatch();
+                if (gameState.netMode === 'online') net.send({ type: 'rematch' });
+            }
+        });
+
+        document.getElementById('btn-flip-page').addEventListener('click', handleFlipClick);
+        document.getElementById('book-body').addEventListener('click', handleFlipClick);
+
+        document.getElementById('btn-open-rules').addEventListener('click', () => {
+            document.getElementById('rules-modal').classList.remove('hidden');
+            document.getElementById('rules-modal').classList.add('flex');
+        });
+        document.getElementById('btn-close-rules').addEventListener('click', () => {
+            document.getElementById('rules-modal').classList.add('hidden');
+            document.getElementById('rules-modal').classList.remove('flex');
+        });
+        document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('sound-icon').textContent = sfx.enabled ? 'volume_up' : 'volume_off';
+        });
+
+        // Online Modal
+        document.getElementById('btn-open-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.remove('hidden');
+            document.getElementById('multiplayer-modal').classList.add('flex');
+        });
+        document.getElementById('btn-close-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.add('hidden');
+            document.getElementById('multiplayer-modal').classList.remove('flex');
+        });
+        document.getElementById('tab-host').addEventListener('click', () => {
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full bg-md-primary text-white transition-all';
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full text-md-secondary transition-all';
+            document.getElementById('view-host').classList.remove('hidden');
+            document.getElementById('view-join').classList.add('hidden');
+        });
+        document.getElementById('tab-join').addEventListener('click', () => {
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full bg-md-primary text-white transition-all';
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full text-md-secondary transition-all';
+            document.getElementById('view-join').classList.remove('hidden');
+            document.getElementById('view-host').classList.add('hidden');
+        });
+        document.getElementById('btn-create-room').addEventListener('click', () => {
+            const name = document.getElementById('host-name').value.trim() || 'Captain 1';
+            net.initHost(name);
+        });
+        document.getElementById('btn-submit-join').addEventListener('click', () => {
+            const code = document.getElementById('join-code').value.trim().toUpperCase();
+            const name = document.getElementById('join-name').value.trim() || 'Challenger';
+            if (code) net.initClient(code, name);
+        });
+        document.getElementById('btn-copy-code').addEventListener('click', () => {
+            if (net.roomCode) navigator.clipboard.writeText(net.roomCode);
+        });
+        document.getElementById('btn-copy-link').addEventListener('click', () => {
+            if (net.roomCode) navigator.clipboard.writeText(getRoomShareUrl(net.roomCode));
+        });
+
+        window.onload = function() {
+            updateRoleCards();
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = urlParams.get('room');
+            if (room) {
+                document.getElementById('join-code').value = room;
+                document.getElementById('multiplayer-modal').classList.remove('hidden');
+                document.getElementById('multiplayer-modal').classList.add('flex');
+                document.getElementById('tab-join').click();
+            }
+        };
+    </script>
+</body>
+</html>

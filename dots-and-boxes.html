@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dots and Boxes | Gyan Games Studio</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        md: {
+                            primary: '#3B82F6',
+                            onPrimary: '#FFFFFF',
+                            primaryContainer: '#DBEAFE',
+                            onPrimaryContainer: '#1E3A8A',
+                            surface: '#F8FAFC',
+                            surfaceHighest: '#E2E8F0',
+                            outlineVariant: '#CBD5E1',
+                            secondary: '#64748B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <!-- PeerJS & QRCode & Confetti -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .notebook-paper {
+            background-color: #FFFFFF;
+            background-image: 
+                linear-gradient(90deg, transparent 48px, #FCA5A5 49px, transparent 51px),
+                repeating-linear-gradient(transparent, transparent 27px, #E2E8F0 28px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Line segments */
+        .line-segment {
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .line-segment:hover:not(.line-claimed) {
+            background-color: #93C5FD;
+            opacity: 0.65;
+        }
+        .line-claimed {
+            cursor: default;
+        }
+
+        .box-cell {
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+    </style>
+</head>
+<body class="bg-[#F1F5F9] text-slate-800 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="w-full px-4 py-3 bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <a href="index.html" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 flex items-center justify-center transition-all shadow-sm" title="Back to Game Hub">
+                    <span class="material-symbols-rounded text-lg">arrow_back</span>
+                </a>
+                <div class="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md font-extrabold text-base">
+                    ✏️
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-extrabold text-sm sm:text-base tracking-tight text-slate-900">Dots & Boxes</h1>
+                        <button id="btn-grid-size" class="text-[9px] font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full hover:bg-blue-100 cursor-pointer">4x4 Grid ▾</button>
+                    </div>
+                    <div class="text-[10px] text-slate-400 flex items-center gap-2">
+                        <span id="net-indicator" class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-slate-400" id="net-dot"></span>
+                            <span id="net-label">Solo / Bot</span>
+                        </span>
+                        <span id="hud-room-code" class="hidden font-mono font-bold bg-slate-200 text-slate-800 px-1.5 rounded cursor-pointer" title="Click to copy Room Link">ROOM: ----</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <button id="btn-open-multiplayer" class="px-3.5 py-1.5 rounded-full bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-rounded text-base">wifi</span>
+                    <span class="hidden sm:inline">Online Room</span>
+                </button>
+                <button id="btn-restart" class="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" title="Restart Board">
+                    <span class="material-symbols-rounded text-base">refresh</span>
+                </button>
+                <button id="btn-toggle-sound" class="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" title="Toggle Sound">
+                    <span class="material-symbols-rounded text-base" id="sound-icon">volume_up</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-4 sm:py-6 flex-1 flex flex-col justify-center items-center">
+        
+        <!-- Scoreboard Header -->
+        <div class="w-full max-w-sm flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200 mb-4 shadow-md">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">P1</div>
+                <div>
+                    <span class="font-extrabold text-xs text-blue-900 block" id="p1-label">Player 1</span>
+                    <span class="text-lg font-mono font-extrabold text-blue-600" id="p1-score">0</span>
+                </div>
+            </div>
+
+            <div class="px-3 py-1 rounded-full text-xs font-bold" id="turn-banner">
+                P1's Turn
+            </div>
+
+            <div class="flex items-center gap-2 text-right">
+                <div>
+                    <span class="font-extrabold text-xs text-rose-900 block" id="p2-label">Cyber Bot</span>
+                    <span class="text-lg font-mono font-extrabold text-rose-600" id="p2-score">0</span>
+                </div>
+                <div class="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">P2</div>
+            </div>
+        </div>
+
+        <!-- Notebook Canvas Area -->
+        <div class="notebook-paper p-6 sm:p-8 rounded-3xl border border-slate-200 relative">
+            <div id="grid-container" class="relative">
+                <!-- Dynamically rendered dots, lines, and boxes -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-3 text-center text-xs text-slate-500 border-t border-slate-200">
+        Gyan Games Studio • Dots & Boxes • Classic Notebook Territory Strategy
+    </footer>
+
+    <!-- Multiplayer Modal -->
+    <div id="multiplayer-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-extrabold text-base text-slate-900">Online Dots & Boxes</h3>
+                <button id="btn-close-multiplayer" class="p-1 rounded-full text-slate-400 hover:bg-slate-100">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+
+            <div class="flex rounded-full bg-slate-100 p-1 text-xs font-bold">
+                <button id="tab-host" class="flex-1 py-1.5 rounded-full bg-blue-600 text-white transition-all">Host Room</button>
+                <button id="tab-join" class="flex-1 py-1.5 rounded-full text-slate-500 transition-all">Join Room</button>
+            </div>
+
+            <div id="view-host" class="space-y-4">
+                <div id="host-setup" class="space-y-3">
+                    <input type="text" id="host-name" value="Player 1" maxlength="12" class="w-full px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none">
+                    <button id="btn-create-room" class="w-full py-2.5 rounded-full bg-blue-600 text-white text-xs font-bold shadow-md">Create Room</button>
+                </div>
+                <div id="host-active" class="hidden space-y-3 text-center">
+                    <div class="p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                        <span class="text-[10px] uppercase font-bold text-blue-800 block">Room Code</span>
+                        <span id="display-room-code" class="text-2xl font-mono font-extrabold text-slate-900">----</span>
+                    </div>
+                    <div id="qrcode-box" class="flex justify-center p-2 bg-white rounded-2xl border mx-auto w-32 h-32 items-center"></div>
+                    <div class="flex gap-2">
+                        <button id="btn-copy-code" class="flex-1 py-2 rounded-xl bg-slate-100 text-xs font-bold">Copy Code</button>
+                        <button id="btn-copy-link" class="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">Copy Link</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-join" class="hidden space-y-3">
+                <input type="text" id="join-name" value="Challenger" maxlength="12" placeholder="Your Name" class="w-full px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none">
+                <input type="text" id="join-code" placeholder="DB-XXXX" maxlength="10" class="w-full px-3 py-2 rounded-xl border text-xs font-mono font-extrabold text-center uppercase focus:outline-none">
+                <button id="btn-submit-join" class="w-full py-2.5 rounded-full bg-blue-600 text-white text-xs font-bold shadow-md">Join Match</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border-2 border-blue-400">
+            <div class="w-16 h-16 rounded-full bg-blue-50 text-blue-600 mx-auto flex items-center justify-center text-3xl font-extrabold">
+                🏆
+            </div>
+            <div>
+                <h3 class="text-lg font-extrabold text-slate-900" id="winner-title">Player 1 Wins!</h3>
+                <p class="text-xs text-slate-500 mt-1">Conquered the notebook territory!</p>
+            </div>
+            <button id="btn-victory-restart" class="w-full py-2.5 rounded-full bg-blue-600 text-white text-xs font-bold shadow-md">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const SITE_URL = 'https://gyan-games.vercel.app';
+
+        class SoundEngine {
+            constructor() { this.ctx = null; this.enabled = true; }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            playTone(freq, type = 'sine', duration = 0.08, gain = 0.2) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                g.gain.setValueAtTime(gain, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.connect(g);
+                g.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            playLine() { this.playTone(380, 'triangle', 0.06, 0.2); }
+            playBox() {
+                this.playTone(523, 'triangle', 0.1, 0.25);
+                setTimeout(() => this.playTone(784, 'triangle', 0.15, 0.25), 90);
+            }
+            playWin() {
+                this.playTone(587, 'triangle', 0.1, 0.25);
+                setTimeout(() => this.playTone(740, 'triangle', 0.12, 0.25), 100);
+                setTimeout(() => this.playTone(880, 'triangle', 0.25, 0.3), 200);
+            }
+        }
+        const sfx = new SoundEngine();
+
+        let gridSize = 4; // 4 dots = 3x3 boxes (or 5 dots = 4x4 boxes)
+        let numBoxes = gridSize - 1;
+
+        let hLines = []; // numBoxes+1 rows, numBoxes cols
+        let vLines = []; // numBoxes rows, numBoxes+1 cols
+        let boxes = [];  // numBoxes rows, numBoxes cols
+
+        let currentPlayer = 1; // 1 (Blue) or 2 (Rose)
+        let p1Score = 0;
+        let p2Score = 0;
+        let isResolving = false;
+        let netMode = 'local';
+        let localPlayerId = 1;
+        let p1Name = 'Player 1';
+        let p2Name = 'Cyber Bot';
+
+        class DBNetworkManager {
+            constructor() {
+                this.peer = null;
+                this.conn = null;
+                this.isHost = false;
+                this.roomCode = null;
+                this.isConnected = false;
+            }
+            generateCode() {
+                const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+                let c = 'DB-';
+                for (let i = 0; i < 4; i++) c += chars.charAt(Math.floor(Math.random() * chars.length));
+                return c;
+            }
+            initHost(name) {
+                this.isHost = true;
+                this.roomCode = this.generateCode();
+                p1Name = name;
+                netMode = 'online';
+                localPlayerId = 1;
+
+                const peerId = `db-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+                this.peer = new Peer(peerId, { debug: 1 });
+
+                this.peer.on('open', () => {
+                    this.isConnected = true;
+                    document.getElementById('display-room-code').textContent = this.roomCode;
+                    renderQRCode(this.roomCode);
+                    document.getElementById('host-setup').classList.add('hidden');
+                    document.getElementById('host-active').classList.remove('hidden');
+                    updateHeaderNetUI(true, this.roomCode);
+                });
+                this.peer.on('connection', (c) => {
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+            initClient(code, name) {
+                this.isHost = false;
+                this.roomCode = code.toUpperCase();
+                p2Name = name;
+                netMode = 'online';
+                localPlayerId = 2;
+
+                const targetId = `db-room-${this.roomCode.toLowerCase()}`;
+                if (this.peer) this.peer.destroy();
+                this.peer = new Peer(null, { debug: 1 });
+
+                this.peer.on('open', () => {
+                    const c = this.peer.connect(targetId, { reliable: true });
+                    this.conn = c;
+                    this.setupConnection();
+                });
+            }
+            setupConnection() {
+                this.conn.on('open', () => {
+                    this.isConnected = true;
+                    updateHeaderNetUI(this.isHost, this.roomCode);
+                    if (this.isHost) {
+                        this.conn.send({ type: 'welcome', hostName: p1Name, size: gridSize });
+                    } else {
+                        this.conn.send({ type: 'join_info', clientName: p2Name });
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                    }
+                });
+                this.conn.on('data', (d) => {
+                    if (d.type === 'welcome') {
+                        p1Name = d.hostName;
+                        gridSize = d.size;
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                        initGame();
+                    } else if (d.type === 'join_info') {
+                        p2Name = d.clientName;
+                        updateNames();
+                    } else if (d.type === 'line_claim') {
+                        claimLine(d.typeLine, d.r, d.c, false);
+                    } else if (d.type === 'restart') {
+                        initGame();
+                    }
+                });
+            }
+            send(d) { if (this.conn && this.conn.open) this.conn.send(d); }
+        }
+        const net = new DBNetworkManager();
+
+        function getRoomShareUrl(code) { return `${SITE_URL}/dots-and-boxes.html?room=${encodeURIComponent(code)}`; }
+
+        function renderQRCode(code) {
+            const box = document.getElementById('qrcode-box');
+            box.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(box, { text: getRoomShareUrl(code), width: 110, height: 110 });
+            }
+        }
+
+        function updateHeaderNetUI(isOnline, code) {
+            const netLabel = document.getElementById('net-label');
+            const netDot = document.getElementById('net-dot');
+            const hudCode = document.getElementById('hud-room-code');
+            if (isOnline && code) {
+                netLabel.textContent = net.isHost ? 'Online (Host)' : 'Online (Peer)';
+                netDot.className = 'w-2 h-2 rounded-full bg-blue-500';
+                hudCode.textContent = `ROOM: ${code}`;
+                hudCode.classList.remove('hidden');
+            } else {
+                netLabel.textContent = 'Solo / Bot';
+                netDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                hudCode.classList.add('hidden');
+            }
+            updateNames();
+        }
+
+        function updateNames() {
+            document.getElementById('p1-label').textContent = p1Name;
+            document.getElementById('p2-label').textContent = p2Name;
+            updateTurnUI();
+        }
+
+        function initGame() {
+            numBoxes = gridSize - 1;
+            hLines = Array.from({ length: numBoxes + 1 }, () => Array(numBoxes).fill(0));
+            vLines = Array.from({ length: numBoxes }, () => Array(numBoxes + 1).fill(0));
+            boxes = Array.from({ length: numBoxes }, () => Array(numBoxes).fill(0));
+
+            currentPlayer = 1;
+            p1Score = 0;
+            p2Score = 0;
+            isResolving = false;
+            document.getElementById('p1-score').textContent = '0';
+            document.getElementById('p2-score').textContent = '0';
+            document.getElementById('victory-modal').classList.add('hidden');
+
+            renderGrid();
+            updateTurnUI();
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+
+            const step = 64; // px per box
+            const totalW = numBoxes * step;
+            const totalH = numBoxes * step;
+
+            container.style.width = `${totalW + 20}px`;
+            container.style.height = `${totalH + 20}px`;
+
+            // Render boxes
+            for (let r = 0; r < numBoxes; r++) {
+                for (let c = 0; c < numBoxes; c++) {
+                    const boxEl = document.createElement('div');
+                    boxEl.id = `box-${r}-${c}`;
+                    boxEl.className = 'box-cell absolute rounded-xl flex items-center justify-center font-extrabold text-sm shadow-inner';
+                    boxEl.style.left = `${c * step + 14}px`;
+                    boxEl.style.top = `${r * step + 14}px`;
+                    boxEl.style.width = `${step - 8}px`;
+                    boxEl.style.height = `${step - 8}px`;
+                    container.appendChild(boxEl);
+                }
+            }
+
+            // Render horizontal lines
+            for (let r = 0; r <= numBoxes; r++) {
+                for (let c = 0; c < numBoxes; c++) {
+                    const hLine = document.createElement('div');
+                    hLine.id = `hline-${r}-${c}`;
+                    hLine.className = 'line-segment absolute bg-slate-300 rounded-full';
+                    hLine.style.left = `${c * step + 14}px`;
+                    hLine.style.top = `${r * step + 8}px`;
+                    hLine.style.width = `${step - 8}px`;
+                    hLine.style.height = '6px';
+                    hLine.addEventListener('click', () => handleLineClick('h', r, c));
+                    container.appendChild(hLine);
+                }
+            }
+
+            // Render vertical lines
+            for (let r = 0; r < numBoxes; r++) {
+                for (let c = 0; c <= numBoxes; c++) {
+                    const vLine = document.createElement('div');
+                    vLine.id = `vline-${r}-${c}`;
+                    vLine.className = 'line-segment absolute bg-slate-300 rounded-full';
+                    vLine.style.left = `${c * step + 8}px`;
+                    vLine.style.top = `${r * step + 14}px`;
+                    vLine.style.width = '6px';
+                    vLine.style.height = `${step - 8}px`;
+                    vLine.addEventListener('click', () => handleLineClick('v', r, c));
+                    container.appendChild(vLine);
+                }
+            }
+
+            // Render dots
+            for (let r = 0; r <= numBoxes; r++) {
+                for (let c = 0; c <= numBoxes; c++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'absolute w-3.5 h-3.5 bg-slate-800 rounded-full shadow-sm';
+                    dot.style.left = `${c * step + 4.5}px`;
+                    dot.style.top = `${r * step + 4.5}px`;
+                    container.appendChild(dot);
+                }
+            }
+        }
+
+        function handleLineClick(type, r, c) {
+            if (isResolving) return;
+            if (netMode === 'online' && currentPlayer !== localPlayerId) return;
+
+            const isH = type === 'h';
+            if (isH && hLines[r][c] !== 0) return;
+            if (!isH && vLines[r][c] !== 0) return;
+
+            if (netMode === 'online') {
+                net.send({ type: 'line_claim', typeLine: type, r: r, c: c });
+            }
+            claimLine(type, r, c, true);
+        }
+
+        function claimLine(type, r, c, isLocal) {
+            sfx.playLine();
+            const isH = type === 'h';
+            const color = currentPlayer === 1 ? '#2563EB' : '#E11D48';
+
+            if (isH) {
+                hLines[r][c] = currentPlayer;
+                const el = document.getElementById(`hline-${r}-${c}`);
+                el.classList.add('line-claimed');
+                el.style.backgroundColor = color;
+            } else {
+                vLines[r][c] = currentPlayer;
+                const el = document.getElementById(`vline-${r}-${c}`);
+                el.classList.add('line-claimed');
+                el.style.backgroundColor = color;
+            }
+
+            // Check if any box completed
+            let boxesCompleted = 0;
+            for (let row = 0; row < numBoxes; row++) {
+                for (let col = 0; col < numBoxes; col++) {
+                    if (boxes[row][col] === 0) {
+                        const top = hLines[row][col] !== 0;
+                        const bottom = hLines[row + 1][col] !== 0;
+                        const left = vLines[row][col] !== 0;
+                        const right = vLines[row][col + 1] !== 0;
+
+                        if (top && bottom && left && right) {
+                            boxes[row][col] = currentPlayer;
+                            boxesCompleted++;
+                            claimBoxUI(row, col, currentPlayer);
+                        }
+                    }
+                }
+            }
+
+            if (boxesCompleted > 0) {
+                sfx.playBox();
+                if (currentPlayer === 1) p1Score += boxesCompleted;
+                else p2Score += boxesCompleted;
+                document.getElementById('p1-score').textContent = p1Score;
+                document.getElementById('p2-score').textContent = p2Score;
+
+                if (checkGameEnd()) return;
+                // Bonus Turn!
+                updateTurnUI(true);
+            } else {
+                // Switch turn
+                currentPlayer = currentPlayer === 1 ? 2 : 1;
+                updateTurnUI();
+                checkBotTurn();
+            }
+        }
+
+        function claimBoxUI(r, c, player) {
+            const el = document.getElementById(`box-${r}-${c}`);
+            const isP1 = player === 1;
+            el.style.backgroundColor = isP1 ? '#DBEAFE' : '#FFE4E6';
+            el.style.color = isP1 ? '#1E40AF' : '#9F1239';
+            el.textContent = isP1 ? (p1Name.charAt(0) || 'P1') : (p2Name.charAt(0) || 'P2');
+        }
+
+        function updateTurnUI(isBonus = false) {
+            const banner = document.getElementById('turn-banner');
+            const isP1 = currentPlayer === 1;
+            const name = isP1 ? p1Name : p2Name;
+            banner.className = `px-3 py-1 rounded-full text-xs font-extrabold ${isP1 ? 'bg-blue-100 text-blue-900' : 'bg-rose-100 text-rose-900'}`;
+            banner.textContent = isBonus ? `⭐ ${name} Scores & Plays Again!` : `${name}'s Turn`;
+        }
+
+        function checkGameEnd() {
+            const totalBoxes = numBoxes * numBoxes;
+            if (p1Score + p2Score >= totalBoxes) {
+                sfx.playWin();
+                const p1Won = p1Score > p2Score;
+                const winnerName = p1Score === p2Score ? 'Tie Game!' : (p1Won ? p1Name : p2Name);
+                document.getElementById('winner-title').textContent = p1Score === p2Score ? 'Tie Game!' : `🏆 ${winnerName} Wins!`;
+                document.getElementById('victory-modal').classList.remove('hidden');
+                if (typeof confetti !== 'undefined') confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+                return true;
+            }
+            return false;
+        }
+
+        function checkBotTurn() {
+            if (netMode === 'local' && currentPlayer === 2 && p2Name === 'Cyber Bot') {
+                setTimeout(botMakeMove, 500);
+            }
+        }
+
+        function botMakeMove() {
+            // Greedy bot: find line that completes a box
+            for (let r = 0; r < numBoxes; r++) {
+                for (let c = 0; c < numBoxes; c++) {
+                    if (boxes[r][c] === 0) {
+                        const sides = [
+                            { type: 'h', r: r, c: c, exists: hLines[r][c] !== 0 },
+                            { type: 'h', r: r + 1, c: c, exists: hLines[r + 1][c] !== 0 },
+                            { type: 'v', r: r, c: c, exists: vLines[r][c] !== 0 },
+                            { type: 'v', r: r, c: c + 1, exists: vLines[r][c + 1] !== 0 }
+                        ];
+                        const missing = sides.filter(s => !s.exists);
+                        if (missing.length === 1) {
+                            claimLine(missing[0].type, missing[0].r, missing[0].c, false);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Otherwise, pick any random available line
+            const available = [];
+            for (let r = 0; r <= numBoxes; r++) {
+                for (let c = 0; c < numBoxes; c++) {
+                    if (hLines[r][c] === 0) available.push({ type: 'h', r: r, c: c });
+                }
+            }
+            for (let r = 0; r < numBoxes; r++) {
+                for (let c = 0; c <= numBoxes; c++) {
+                    if (vLines[r][c] === 0) available.push({ type: 'v', r: r, c: c });
+                }
+            }
+            if (available.length > 0) {
+                const choice = available[Math.floor(Math.random() * available.length)];
+                claimLine(choice.type, choice.r, choice.c, false);
+            }
+        }
+
+        document.getElementById('btn-grid-size').addEventListener('click', () => {
+            const sizes = [3, 4, 5]; // 3 dots (2x2 boxes), 4 dots (3x3), 5 dots (4x4)
+            gridSize = sizes[(sizes.indexOf(gridSize) + 1) % sizes.length];
+            document.getElementById('btn-grid-size').textContent = `${gridSize}x${gridSize} Grid ▾`;
+            initGame();
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            initGame();
+            if (netMode === 'online') net.send({ type: 'restart' });
+        });
+
+        document.getElementById('btn-victory-restart').addEventListener('click', () => {
+            initGame();
+            if (netMode === 'online') net.send({ type: 'restart' });
+        });
+
+        document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('sound-icon').textContent = sfx.enabled ? 'volume_up' : 'volume_off';
+        });
+
+        // Online Modal
+        document.getElementById('btn-open-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.remove('hidden');
+            document.getElementById('multiplayer-modal').classList.add('flex');
+        });
+        document.getElementById('btn-close-multiplayer').addEventListener('click', () => {
+            document.getElementById('multiplayer-modal').classList.add('hidden');
+            document.getElementById('multiplayer-modal').classList.remove('flex');
+        });
+        document.getElementById('tab-host').addEventListener('click', () => {
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full bg-blue-600 text-white transition-all';
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full text-slate-500 transition-all';
+            document.getElementById('view-host').classList.remove('hidden');
+            document.getElementById('view-join').classList.add('hidden');
+        });
+        document.getElementById('tab-join').addEventListener('click', () => {
+            document.getElementById('tab-join').className = 'flex-1 py-1.5 rounded-full bg-blue-600 text-white transition-all';
+            document.getElementById('tab-host').className = 'flex-1 py-1.5 rounded-full text-slate-500 transition-all';
+            document.getElementById('view-join').classList.remove('hidden');
+            document.getElementById('view-host').classList.add('hidden');
+        });
+        document.getElementById('btn-create-room').addEventListener('click', () => {
+            const name = document.getElementById('host-name').value.trim() || 'Player 1';
+            net.initHost(name);
+        });
+        document.getElementById('btn-submit-join').addEventListener('click', () => {
+            const code = document.getElementById('join-code').value.trim().toUpperCase();
+            const name = document.getElementById('join-name').value.trim() || 'Challenger';
+            if (code) net.initClient(code, name);
+        });
+        document.getElementById('btn-copy-code').addEventListener('click', () => {
+            if (net.roomCode) navigator.clipboard.writeText(net.roomCode);
+        });
+        document.getElementById('btn-copy-link').addEventListener('click', () => {
+            if (net.roomCode) navigator.clipboard.writeText(getRoomShareUrl(net.roomCode));
+        });
+
+        window.onload = function() {
+            initGame();
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = urlParams.get('room');
+            if (room) {
+                document.getElementById('join-code').value = room;
+                document.getElementById('multiplayer-modal').classList.remove('hidden');
+                document.getElementById('multiplayer-modal').classList.add('flex');
+                document.getElementById('tab-join').click();
+            }
+        };
+    </script>
+</body>
+</html>

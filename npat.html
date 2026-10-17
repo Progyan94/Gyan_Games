@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Name, Place, Animal, Thing | Gyan Games Studio</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        npat: {
+                            primary: '#0D9488',
+                            primaryLight: '#CCFBF1',
+                            accent: '#F59E0B',
+                            danger: '#EF4444'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+
+    <!-- PeerJS & QRCode & Confetti -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-hand { font-family: 'Caveat', cursive; }
+
+        /* Lined Notebook Paper styling */
+        .notebook-sheet {
+            background-color: #FFFDF9;
+            background-image: 
+                linear-gradient(90deg, transparent 44px, #F87171 45px, transparent 47px),
+                repeating-linear-gradient(transparent, transparent 31px, #E0E7FF 32px);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+        }
+
+        .notebook-line-input {
+            background: transparent;
+            border-bottom: 2px dashed #94A3B8;
+            transition: all 0.2s ease;
+        }
+        .notebook-line-input:focus {
+            border-bottom-color: #0D9488;
+            outline: none;
+            background: rgba(204, 251, 241, 0.25);
+        }
+
+        /* Letter Spinner Animation */
+        @keyframes pulseLetter {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .letter-pop {
+            animation: pulseLetter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes urgentBuzzer {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .buzzer-active {
+            animation: urgentBuzzer 0.4s infinite;
+        }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="w-full px-4 py-3 bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <a href="index.html" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-teal-600 hover:text-white text-slate-600 flex items-center justify-center transition-all shadow-sm" title="Back to Game Hub">
+                    <span class="material-symbols-rounded text-lg">arrow_back</span>
+                </a>
+                <div class="w-9 h-9 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md font-extrabold text-base">
+                    🎯
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-extrabold text-sm sm:text-base tracking-tight text-slate-900">Name, Place, Animal, Thing</h1>
+                        <span id="badge-round" class="text-[10px] font-mono font-bold bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-full">Round 1 / 3</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 flex items-center gap-2">
+                        <span id="net-indicator" class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-slate-400" id="net-dot"></span>
+                            <span id="net-label">Solo / Bot Mode</span>
+                        </span>
+                        <span id="hud-room-code" class="hidden font-mono font-bold bg-slate-200 text-slate-800 px-1.5 rounded cursor-pointer" title="Click to copy Room Link">ROOM: ----</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <button id="btn-open-multiplayer" class="px-3.5 py-1.5 rounded-full bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 transition-all flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-rounded text-base">wifi</span>
+                    <span class="hidden sm:inline">Online Room</span>
+                </button>
+                <button id="btn-restart" class="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" title="New Game">
+                    <span class="material-symbols-rounded text-base">refresh</span>
+                </button>
+                <button id="btn-toggle-sound" class="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" title="Toggle Sound">
+                    <span class="material-symbols-rounded text-base" id="sound-icon">volume_up</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
+
+        <!-- Top Status & Letter Controller Card -->
+        <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-5">
+            <!-- Left: Current Letter Indicator -->
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div id="letter-display" class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-teal-500 to-teal-700 text-white font-black text-4xl sm:text-5xl flex items-center justify-center shadow-lg shadow-teal-500/20 border-4 border-white tracking-tight">
+                    ?
+                </div>
+                <div>
+                    <div class="text-xs uppercase tracking-wider font-bold text-slate-400">Target Letter</div>
+                    <div id="letter-status-text" class="text-lg sm:text-xl font-extrabold text-slate-800">Spin the Alphabet!</div>
+                    <div class="text-xs text-slate-500 mt-0.5">All answers must start with this letter</div>
+                </div>
+            </div>
+
+            <!-- Middle: Timer -->
+            <div class="flex items-center gap-3">
+                <div class="text-center">
+                    <div class="text-xs uppercase font-bold text-slate-400">Time Remaining</div>
+                    <div id="hud-timer" class="font-mono text-3xl sm:text-4xl font-black text-slate-800">45<span class="text-base text-slate-400 font-sans">s</span></div>
+                </div>
+                <div id="urgent-badge" class="hidden px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full buzzer-active">
+                    🚨 STOP CALLED!
+                </div>
+            </div>
+
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-2.5 w-full md:w-auto justify-end">
+                <button id="btn-spin-letter" class="px-5 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 transition-all">
+                    <span class="material-symbols-rounded">autorenew</span>
+                    <span>Spin Letter</span>
+                </button>
+                <button id="btn-stop-round" disabled class="px-5 py-3 rounded-2xl bg-slate-200 text-slate-400 font-black text-sm flex items-center justify-center gap-1.5 transition-all cursor-not-allowed">
+                    <span class="material-symbols-rounded">pan_tool</span>
+                    <span>STOP!</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Notebook Writing Area (Active Round) -->
+        <section id="section-play" class="notebook-sheet rounded-3xl p-6 sm:p-8 border border-slate-300 relative transition-all">
+            <!-- Notebook Spiral Rings Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-slate-300 inline-block"></span>
+                    <span>Classroom Notebook Paper</span>
+                </div>
+                <div class="font-hand text-xl text-teal-800 font-bold normal-case">Write fast & accurately!</div>
+            </div>
+
+            <!-- Input Fields Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+                <!-- Name -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs uppercase font-extrabold tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <span>👤</span> Name
+                        </label>
+                        <span id="badge-status-name" class="text-[10px] font-bold text-slate-400 uppercase">Empty</span>
+                    </div>
+                    <div class="relative">
+                        <input id="input-name" type="text" placeholder="e.g., Albert" disabled autocomplete="off"
+                            class="notebook-line-input w-full py-2.5 px-2 text-lg sm:text-xl font-bold text-slate-800 placeholder-slate-300 font-hand tracking-wide">
+                        <span id="icon-name" class="hidden absolute right-2 top-3 text-emerald-500 font-bold material-symbols-rounded text-lg">check_circle</span>
+                    </div>
+                </div>
+
+                <!-- Place -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs uppercase font-extrabold tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <span>🌍</span> Place
+                        </label>
+                        <span id="badge-status-place" class="text-[10px] font-bold text-slate-400 uppercase">Empty</span>
+                    </div>
+                    <div class="relative">
+                        <input id="input-place" type="text" placeholder="e.g., Amsterdam" disabled autocomplete="off"
+                            class="notebook-line-input w-full py-2.5 px-2 text-lg sm:text-xl font-bold text-slate-800 placeholder-slate-300 font-hand tracking-wide">
+                        <span id="icon-place" class="hidden absolute right-2 top-3 text-emerald-500 font-bold material-symbols-rounded text-lg">check_circle</span>
+                    </div>
+                </div>
+
+                <!-- Animal -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs uppercase font-extrabold tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <span>🦁</span> Animal
+                        </label>
+                        <span id="badge-status-animal" class="text-[10px] font-bold text-slate-400 uppercase">Empty</span>
+                    </div>
+                    <div class="relative">
+                        <input id="input-animal" type="text" placeholder="e.g., Alligator" disabled autocomplete="off"
+                            class="notebook-line-input w-full py-2.5 px-2 text-lg sm:text-xl font-bold text-slate-800 placeholder-slate-300 font-hand tracking-wide">
+                        <span id="icon-animal" class="hidden absolute right-2 top-3 text-emerald-500 font-bold material-symbols-rounded text-lg">check_circle</span>
+                    </div>
+                </div>
+
+                <!-- Thing -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs uppercase font-extrabold tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <span>💡</span> Thing
+                        </label>
+                        <span id="badge-status-thing" class="text-[10px] font-bold text-slate-400 uppercase">Empty</span>
+                    </div>
+                    <div class="relative">
+                        <input id="input-thing" type="text" placeholder="e.g., Anchor" disabled autocomplete="off"
+                            class="notebook-line-input w-full py-2.5 px-2 text-lg sm:text-xl font-bold text-slate-800 placeholder-slate-300 font-hand tracking-wide">
+                        <span id="icon-thing" class="hidden absolute right-2 top-3 text-emerald-500 font-bold material-symbols-rounded text-lg">check_circle</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hint footer -->
+            <div class="mt-8 pt-4 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div class="flex items-center gap-1.5">
+                    <span class="material-symbols-rounded text-base text-teal-600">tips_and_updates</span>
+                    <span>Fill all 4 fields to activate <strong>STOP!</strong>. Unique answers earn <strong>+10 pts</strong>, shared answers <strong>+5 pts</strong>.</span>
+                </div>
+                <div id="player-progress-indicator" class="font-mono text-teal-800 font-bold">
+                    0 / 4 Completed
+                </div>
+            </div>
+        </section>
+
+        <!-- Round Review & Scoring Modal/Section -->
+        <section id="section-review" class="hidden bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md flex flex-col gap-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                    <span class="text-xs uppercase tracking-wider font-extrabold text-teal-700">Scoring Phase</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                        Round Review (<span id="review-letter" class="text-teal-600">?</span>)
+                    </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-next-round" class="px-5 py-2.5 rounded-2xl bg-teal-600 text-white font-bold text-sm hover:bg-teal-700 shadow-md shadow-teal-600/20 transition-all flex items-center gap-1.5">
+                        <span>Next Round</span>
+                        <span class="material-symbols-rounded">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-[11px] uppercase tracking-wider font-extrabold text-slate-400">
+                            <th class="py-2.5 px-3">Player</th>
+                            <th class="py-2.5 px-3">👤 Name</th>
+                            <th class="py-2.5 px-3">🌍 Place</th>
+                            <th class="py-2.5 px-3">🦁 Animal</th>
+                            <th class="py-2.5 px-3">💡 Thing</th>
+                            <th class="py-2.5 px-3 text-right">Round Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="review-table-body" class="divide-y divide-slate-100 text-sm">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-2xl text-xs text-slate-600 flex items-center justify-between">
+                <span>💡 Click on any word in the table to toggle challenge (accept / reject).</span>
+                <span id="review-status-note" class="font-bold text-teal-700">Scores calculated automatically</span>
+            </div>
+        </section>
+
+        <!-- Leaderboard Card -->
+        <section class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs uppercase tracking-wider font-extrabold text-slate-400">Overall Match Standings</h3>
+                <span id="match-status" class="text-xs font-bold text-slate-500">First to 100 or highest after 3 rounds</span>
+            </div>
+            <div id="leaderboard-list" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <!-- Injected via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
+        Classroom Nostalgia Collection &bull; <a href="index.html" class="text-teal-600 font-bold hover:underline">Gyan Games Studio</a>
+    </footer>
+
+    <!-- Multiplayer Modal -->
+    <div id="modal-multiplayer" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-teal-500"></span>
+                    <h3 class="font-extrabold text-lg text-slate-800">Online Multiplayer</h3>
+                </div>
+                <button id="btn-close-mp" class="p-1 rounded-full text-slate-400 hover:text-slate-700">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="flex rounded-2xl bg-slate-100 p-1">
+                <button id="tab-host" class="flex-1 py-2 text-xs font-extrabold rounded-xl bg-white shadow-sm text-teal-800">Host Room</button>
+                <button id="tab-join" class="flex-1 py-2 text-xs font-extrabold rounded-xl text-slate-500">Join Room</button>
+            </div>
+
+            <!-- Host Panel -->
+            <div id="panel-host" class="flex flex-col gap-4">
+                <div class="flex flex-col items-center justify-center p-4 bg-teal-50/50 rounded-2xl border border-teal-100">
+                    <div id="qrcode-container" class="bg-white p-2 rounded-xl shadow-sm mb-3"></div>
+                    <div class="text-xs text-slate-500 font-semibold mb-1">Your Room Code:</div>
+                    <div id="host-code-display" class="font-mono text-2xl font-black text-teal-900 tracking-wider">CREATING...</div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs font-semibold text-slate-600 px-1">
+                    <span>Target Rounds:</span>
+                    <select id="select-rounds" class="bg-slate-100 border border-slate-300 rounded-lg px-2 py-1 text-slate-800 font-bold">
+                        <option value="3">3 Rounds</option>
+                        <option value="5">5 Rounds</option>
+                        <option value="10">10 Rounds</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="btn-copy-link" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
+                        <span class="material-symbols-rounded text-sm">link</span>
+                        <span>Copy Invite Link</span>
+                    </button>
+                    <button id="btn-start-hosted-game" class="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-teal-600/20">
+                        <span class="material-symbols-rounded text-sm">play_arrow</span>
+                        <span>Launch Game</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Join Panel -->
+            <div id="panel-join" class="hidden flex flex-col gap-4">
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-600">Enter Room Code</label>
+                    <input id="input-join-code" type="text" placeholder="NPAT-XXXX" maxlength="10"
+                        class="uppercase font-mono font-bold text-lg px-4 py-2.5 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none text-center">
+                </div>
+                <button id="btn-join-room" class="py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 flex items-center justify-center gap-1.5">
+                    <span>Connect to Room</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Game Over Modal -->
+    <div id="modal-gameover" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
+            <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-3xl shadow-inner">
+                🏆
+            </div>
+            <div>
+                <h3 id="gameover-title" class="text-2xl font-black text-slate-900">Game Over!</h3>
+                <p id="gameover-desc" class="text-xs text-slate-500 mt-1">Player 1 wins with the highest score!</p>
+            </div>
+            <div id="gameover-podium" class="w-full bg-slate-50 p-3 rounded-2xl flex flex-col gap-2 text-xs">
+                <!-- Injected podium standings -->
+            </div>
+            <button id="btn-gameover-restart" class="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 transition-all">
+                Play Another Match
+            </button>
+        </div>
+    </div>
+
+    <!-- Script: Game Logic, Bot AI, Web Audio & WebRTC -->
+    <script>
+        /* -------------------------------------------------------------
+           1. Audio Synthesizer (Zero external dependencies)
+        ------------------------------------------------------------- */
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+            playTone(freq, type = 'sine', duration = 0.15, vol = 0.2) {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            }
+            spinTick() {
+                this.playTone(350 + Math.random() * 200, 'square', 0.04, 0.08);
+            }
+            letterLocked() {
+                this.playTone(523.25, 'sine', 0.12, 0.25);
+                setTimeout(() => this.playTone(659.25, 'sine', 0.18, 0.3), 100);
+            }
+            keyStroke() {
+                this.playTone(180 + Math.random() * 40, 'triangle', 0.03, 0.05);
+            }
+            validWord() {
+                this.playTone(880, 'sine', 0.08, 0.15);
+            }
+            stopBuzzer() {
+                this.playTone(220, 'sawtooth', 0.4, 0.35);
+                setTimeout(() => this.playTone(180, 'sawtooth', 0.5, 0.4), 150);
+            }
+            warningTick() {
+                this.playTone(600, 'sine', 0.05, 0.12);
+            }
+            tallyDing() {
+                this.playTone(784, 'sine', 0.12, 0.2);
+            }
+            winFanfare() {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'triangle', 0.25, 0.3), i * 140);
+                });
+            }
+        }
+        const sound = new SoundEngine();
+
+        /* -------------------------------------------------------------
+           2. Dictionary Database for Bot & Real-time Suggestions
+        ------------------------------------------------------------- */
+        const DICT = {
+            A: { names: ["Albert", "Alice", "Adam", "Anya", "Arthur", "Arya", "Alex", "Aaron"], places: ["Amsterdam", "Australia", "Athens", "Austin", "Argentina", "Alaska", "Auckland"], animals: ["Alligator", "Antelope", "Anteater", "Ape", "Alpaca", "Armadillo", "Axolotl"], things: ["Anchor", "Apple", "Arrow", "Airplane", "Axe", "Album", "Apron"] },
+            B: { names: ["Benjamin", "Bella", "Bruce", "Bianca", "Brian", "Boris", "Blake"], places: ["Berlin", "Boston", "Brazil", "Bangkok", "Barcelona", "Brussels", "Brisbane"], animals: ["Bear", "Beaver", "Bison", "Badger", "Baboon", "Bat", "Buffalo"], things: ["Book", "Bottle", "Basket", "Button", "Bicycle", "Bell", "Bucket"] },
+            C: { names: ["Charlie", "Chloe", "Chris", "Clara", "Caleb", "Camila", "Colin"], places: ["Cairo", "Chicago", "Canada", "Chile", "Copenhagen", "Calgary", "Canberra"], animals: ["Cheetah", "Chimpanzee", "Camel", "Crocodile", "Cobra", "Crab", "Cougar"], things: ["Clock", "Camera", "Chair", "Candle", "Compass", "Coin", "Crown"] },
+            D: { names: ["David", "Daisy", "Daniel", "Diana", "Dylan", "Dexter", "Daphne"], places: ["Dublin", "Denver", "Denmark", "Dallas", "Doha", "Detroit", "Delhi"], animals: ["Dolphin", "Donkey", "Deer", "Duck", "Dingo", "Dragonfly", "Dove"], things: ["Drum", "Door", "Desk", "Diamond", "Dice", "Dagger", "Drawer"] },
+            E: { names: ["Ethan", "Emma", "Edward", "Elena", "Eric", "Eva", "Elliot"], places: ["Edinburgh", "Egypt", "Ecuador", "Estonia", "Ethiopia", "El Paso"], animals: ["Elephant", "Eagle", "Eel", "Emu", "Elk", "Echidna", "Earthworm"], things: ["Engine", "Envelope", "Eraser", "Earring", "Echo", "Easels", "Egg"] },
+            F: { names: ["Felix", "Fiona", "Frank", "Freya", "Finn", "Faith", "Fabian"], places: ["Florence", "France", "Frankfurt", "Fiji", "Finland", "Florida"], animals: ["Fox", "Flamingo", "Falcon", "Ferret", "Frog", "Fish", "Firefly"], things: ["Fork", "Flute", "Flashlight", "Feather", "Fan", "Flag", "Frame"] },
+            G: { names: ["George", "Grace", "Gabriel", "Gemma", "Gavin", "Gloria", "Gary"], places: ["Geneva", "Germany", "Greece", "Glasgow", "Guatemala", "Georgia"], animals: ["Giraffe", "Gorilla", "Goat", "Gazelle", "Goose", "Gecko", "Gibbon"], things: ["Guitar", "Glasses", "Globe", "Glove", "Gear", "Grave", "Gate"] },
+            H: { names: ["Henry", "Hannah", "Harry", "Hazel", "Hugo", "Harper", "Hector"], places: ["Havana", "Helsinki", "Houston", "Hungary", "Hamburg", "Honolulu"], animals: ["Horse", "Hippo", "Hyena", "Hawk", "Hamster", "Hedgehog", "Hare"], things: ["Hammer", "Helmet", "Hat", "Hook", "Horn", "Harp", "Hose"] },
+            I: { names: ["Ian", "Isla", "Isaac", "Iris", "Ivan", "Ivy", "Ibrahim"], places: ["Istanbul", "Iceland", "India", "Ireland", "Italy", "Indianapolis"], animals: ["Iguana", "Impala", "Ibex", "Ibis", "Inchworm", "Indri"], things: ["Iron", "Ink", "Island", "Iceberg", "Instrument", "Igloo"] },
+            J: { names: ["Jack", "Julia", "James", "Jasmine", "Jasper", "Jade", "Jonah"], places: ["Jakarta", "Japan", "Jerusalem", "Jamaica", "Johannesburg", "Jordan"], animals: ["Jaguar", "Jellyfish", "Jackal", "Jaybird", "Jerboa"], things: ["Jacket", "Jar", "Jewel", "Jigsaw", "Journal", "Jug", "Jet"] },
+            K: { names: ["Kevin", "Kira", "Kai", "Kayla", "Keith", "Kendra", "Kyle"], places: ["Kyoto", "Kenya", "Kingston", "Kathmandu", "Kuwait", "Krakow"], animals: ["Kangaroo", "Koala", "Kingfisher", "Kiwi", "Kookaburra", "Krill"], things: ["Key", "Kettle", "Kite", "Knife", "Keyboard", "Kayak", "Knot"] },
+            L: { names: ["Leo", "Luna", "Lucas", "Lily", "Liam", "Lydia", "Logan"], places: ["London", "Lisbon", "Lima", "Liverpool", "Lebanon", "Luxembourg"], animals: ["Lion", "Leopard", "Llama", "Lemur", "Lobster", "Lynx", "Lizard"], things: ["Lamp", "Lock", "Ladder", "Leaf", "Lantern", "Lens", "Laptop"] },
+            M: { names: ["Michael", "Maya", "Mason", "Mia", "Marcus", "Mila", "Miles"], places: ["Madrid", "Mumbai", "Munich", "Mexico", "Melbourne", "Manila"], animals: ["Monkey", "Meerkat", "Moose", "Mongoose", "Mouse", "Mantis"], things: ["Mirror", "Magnet", "Map", "Mask", "Microphone", "Medal", "Mug"] },
+            N: { names: ["Noah", "Nora", "Nathan", "Nina", "Nico", "Naomi", "Neil"], places: ["Nairobi", "Naples", "Norway", "Nashville", "Netherlands", "Nepal"], animals: ["Newt", "Narwhal", "Nightingale", "Numbat", "Nilgai"], things: ["Needle", "Net", "Notebook", "Necklace", "Nut", "Nail", "Nest"] },
+            O: { names: ["Oliver", "Olivia", "Oscar", "Ophelia", "Owen", "Octavia", "Orson"], places: ["Oslo", "Orlando", "Ottawa", "Oman", "Osaka", "Oxford"], animals: ["Octopus", "Owl", "Otter", "Ostrich", "Orangutan", "Ocelot"], things: ["Oven", "Oar", "Organ", "Oil", "Ornament", "Origami"] },
+            P: { names: ["Peter", "Penny", "Patrick", "Piper", "Paul", "Penelope", "Philip"], places: ["Paris", "Prague", "Peru", "Portland", "Poland", "Portugal"], animals: ["Panda", "Penguin", "Panther", "Parrot", "Porcupine", "Pelican"], things: ["Pencil", "Piano", "Plate", "Pillow", "Paintbrush", "Passport"] },
+            Q: { names: ["Quinn", "Queenie", "Quentin", "Quincy", "Qadir"], places: ["Quito", "Quebec", "Qatar", "Queensland", "Queenstown"], animals: ["Quail", "Quokka", "Quoll", "Queen Bee"], things: ["Quill", "Quilt", "Quarter", "Quartz", "Quiver"] },
+            R: { names: ["Ryan", "Ruby", "Roman", "Rachel", "Riley", "Rose", "Robin"], places: ["Rome", "Rio", "Reykjavik", "Riyadh", "Rotterdam", "Romania"], animals: ["Rabbit", "Rhino", "Raccoon", "Raven", "Reindeer", "Rat"], things: ["Ring", "Rope", "Radio", "Rocket", "Ruler", "Robot", "Ribbon"] },
+            S: { names: ["Sam", "Sophia", "Simon", "Stella", "Sean", "Sienna", "Seth"], places: ["Sydney", "Seoul", "Singapore", "Stockholm", "Santiago", "Seattle"], animals: ["Snake", "Shark", "Sloth", "Swan", "Seal", "Squirrel", "Sparrow"], things: ["Sword", "Scissors", "Spoon", "Shield", "Sponge", "Soap", "Stamp"] },
+            T: { names: ["Thomas", "Tara", "Theo", "Tessa", "Tyler", "Talia", "Toby"], places: ["Tokyo", "Toronto", "Tunis", "Tashkent", "Taipei", "Toulouse"], animals: ["Tiger", "Turtle", "Toucan", "Tapir", "Tarantula", "Turkey"], things: ["Telephone", "Torch", "Table", "Trumpet", "Ticket", "Teapot"] },
+            U: { names: ["Uri", "Una", "Ulysses", "Uma", "Umar", "Ursula"], places: ["Utrecht", "Uganda", "Uruguay", "Ukraine", "Udaipur"], animals: ["Urchin", "Uakari", "Umbrellabird", "Unicornfish"], things: ["Umbrella", "Uniform", "Urn", "Unicycle", "Utensil"] },
+            V: { names: ["Victor", "Violet", "Vincent", "Valerie", "Vance", "Vera"], places: ["Vienna", "Venice", "Vancouver", "Vietnam", "Valencia", "Verona"], animals: ["Vulture", "Viper", "Vicuna", "Vole"], things: ["Violin", "Vase", "Valve", "Vest", "Vehicle"] },
+            W: { names: ["William", "Willow", "Walter", "Wendy", "Wyatt", "Wren"], places: ["Warsaw", "Washington", "Wellington", "Wales", "Winnipeg"], animals: ["Wolf", "Whale", "Walrus", "Wombat", "Weasel", "Woodpecker"], things: ["Watch", "Whistle", "Wheel", "Wallet", "Wrench", "Wand"] },
+            X: { names: ["Xavier", "Xena", "Xander", "Xia", "Xerxes"], places: ["Xian", "Xiamen", "Xalapa", "Xinjiang"], animals: ["X-Ray Tetra", "Xerus", "Xenops"], things: ["Xylophone", "X-ray", "Xerox"] },
+            Y: { names: ["Yusuf", "Yasmin", "Yash", "Yvonne", "Yuri", "Yvette"], places: ["Yokohama", "Yerevan", "Yemen", "York", "Yellowknife"], animals: ["Yak", "Yellowjacket", "Yorkie"], things: ["Yacht", "Yarn", "Yo-yo", "Yoke"] },
+            Z: { names: ["Zack", "Zara", "Zane", "Zoe", "Zion", "Zelda"], places: ["Zagreb", "Zurich", "Zambia", "Zimbabwe", "Zanzibar"], animals: ["Zebra", "Zebu", "Zorilla"], things: ["Zipper", "Zither", "Zeppelin"] }
+        };
+
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+        /* -------------------------------------------------------------
+           3. Game State
+        ------------------------------------------------------------- */
+        let state = {
+            currentLetter: null,
+            timer: 45,
+            timerInterval: null,
+            urgentMode: false,
+            roundIndex: 1,
+            maxRounds: 3,
+            isReviewing: false,
+            spinning: false,
+            isMultiplayer: false,
+            isHost: false,
+            myId: 'player_' + Math.random().toString(36).substring(2, 7),
+            peer: null,
+            connections: {},
+            roomCode: null,
+            players: [
+                { id: 'me', name: 'You (P1)', score: 0, isLocal: true }
+            ],
+            // Current round answers: { playerId: { name: "", place: "", animal: "", thing: "", submitted: false, valid: { name: true, ... } } }
+            roundAnswers: {}
+        };
+
+        // DOM Elements
+        const letterDisplay = document.getElementById('letter-display');
+        const letterStatusText = document.getElementById('letter-status-text');
+        const hudTimer = document.getElementById('hud-timer');
+        const urgentBadge = document.getElementById('urgent-badge');
+        const btnSpinLetter = document.getElementById('btn-spin-letter');
+        const btnStopRound = document.getElementById('btn-stop-round');
+        const badgeRound = document.getElementById('badge-round');
+
+        const inputName = document.getElementById('input-name');
+        const inputPlace = document.getElementById('input-place');
+        const inputAnimal = document.getElementById('input-animal');
+        const inputThing = document.getElementById('input-thing');
+        const inputs = [inputName, inputPlace, inputAnimal, inputThing];
+
+        const sectionPlay = document.getElementById('section-play');
+        const sectionReview = document.getElementById('section-review');
+        const reviewLetter = document.getElementById('review-letter');
+        const reviewTableBody = document.getElementById('review-table-body');
+        const btnNextRound = document.getElementById('btn-next-round');
+        const leaderboardList = document.getElementById('leaderboard-list');
+
+        /* -------------------------------------------------------------
+           4. Game Initialization & Bot Setup
+        ------------------------------------------------------------- */
+        function initSoloGame() {
+            state.isMultiplayer = false;
+            state.isHost = true;
+            state.players = [
+                { id: 'me', name: 'You', score: 0, isLocal: true },
+                { id: 'bot', name: 'Smart Bot 🤖', score: 0, isLocal: false }
+            ];
+            state.roundIndex = 1;
+            updateLeaderboard();
+            resetRoundInputs();
+            letterDisplay.innerText = '?';
+            letterStatusText.innerText = 'Ready to Play!';
+            btnSpinLetter.disabled = false;
+            btnSpinLetter.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function updateLeaderboard() {
+            leaderboardList.innerHTML = '';
+            state.players.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200/70";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full ${p.isLocal ? 'bg-teal-500' : 'bg-amber-500'}"></span>
+                        <span class="font-bold text-xs text-slate-800 truncate max-w-[90px]">${p.name}</span>
+                    </div>
+                    <span class="font-mono font-extrabold text-sm text-teal-700">${p.score} pts</span>
+                `;
+                leaderboardList.appendChild(card);
+            });
+            badgeRound.innerText = `Round ${state.roundIndex} / ${state.maxRounds}`;
+        }
+
+        /* -------------------------------------------------------------
+           5. Letter Spinning Mechanic
+        ------------------------------------------------------------- */
+        function spinLetter(chosenLetter = null) {
+            if (state.spinning) return;
+            state.spinning = true;
+            btnSpinLetter.disabled = true;
+            btnSpinLetter.classList.add('opacity-50', 'cursor-not-allowed');
+            sound.init();
+
+            let spins = 0;
+            const maxSpins = 20;
+            const interval = setInterval(() => {
+                const randChar = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+                letterDisplay.innerText = randChar;
+                letterDisplay.classList.remove('letter-pop');
+                void letterDisplay.offsetWidth; // trigger reflow
+                letterDisplay.classList.add('letter-pop');
+                sound.spinTick();
+                spins++;
+
+                if (spins >= maxSpins) {
+                    clearInterval(interval);
+                    const finalLetter = chosenLetter || ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+                    letterDisplay.innerText = finalLetter;
+                    state.currentLetter = finalLetter;
+                    state.spinning = false;
+                    sound.letterLocked();
+                    letterStatusText.innerText = `Target Letter: "${finalLetter}"`;
+
+                    // Broadcast if host
+                    if (state.isMultiplayer && state.isHost) {
+                        broadcast({ type: 'LETTER_CHOSEN', letter: finalLetter });
+                    }
+
+                    startRound();
+                }
+            }, 70);
+        }
+
+        btnSpinLetter.addEventListener('click', () => {
+            if (!state.isHost && state.isMultiplayer) return;
+            spinLetter();
+        });
+
+        /* -------------------------------------------------------------
+           6. Active Round Management
+        ------------------------------------------------------------- */
+        function resetRoundInputs() {
+            inputs.forEach(inp => {
+                inp.value = '';
+                inp.disabled = true;
+            });
+            document.getElementById('badge-status-name').innerText = 'Empty';
+            document.getElementById('badge-status-place').innerText = 'Empty';
+            document.getElementById('badge-status-animal').innerText = 'Empty';
+            document.getElementById('badge-status-thing').innerText = 'Empty';
+            document.getElementById('icon-name').classList.add('hidden');
+            document.getElementById('icon-place').classList.add('hidden');
+            document.getElementById('icon-animal').classList.add('hidden');
+            document.getElementById('icon-thing').classList.add('hidden');
+            document.getElementById('player-progress-indicator').innerText = '0 / 4 Completed';
+
+            btnStopRound.disabled = true;
+            btnStopRound.className = "px-5 py-3 rounded-2xl bg-slate-200 text-slate-400 font-black text-sm flex items-center justify-center gap-1.5 transition-all cursor-not-allowed";
+
+            urgentBadge.classList.add('hidden');
+            state.urgentMode = false;
+            state.roundAnswers = {};
+            state.players.forEach(p => {
+                state.roundAnswers[p.id] = { name: '', place: '', animal: '', thing: '', submitted: false };
+            });
+        }
+
+        function startRound() {
+            resetRoundInputs();
+            sectionReview.classList.add('hidden');
+            sectionPlay.classList.remove('hidden');
+
+            inputs.forEach(inp => inp.disabled = false);
+            inputName.focus();
+
+            state.timer = 45;
+            state.urgentMode = false;
+            updateTimerDisplay();
+
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            state.timerInterval = setInterval(onTimerTick, 1000);
+
+            // If solo mode, schedule smart bot actions
+            if (!state.isMultiplayer) {
+                simulateBotPlay(state.currentLetter);
+            }
+        }
+
+        function onTimerTick() {
+            state.timer--;
+            updateTimerDisplay();
+
+            if (state.timer <= 5 && state.timer > 0) {
+                sound.warningTick();
+            }
+
+            if (state.timer <= 0) {
+                clearInterval(state.timerInterval);
+                sound.stopBuzzer();
+                finishRound();
+            }
+        }
+
+        function updateTimerDisplay() {
+            hudTimer.innerHTML = `${state.timer}<span class="text-base text-slate-400 font-sans">s</span>`;
+            if (state.timer <= 10) {
+                hudTimer.classList.add('text-red-500');
+            } else {
+                hudTimer.classList.remove('text-red-500');
+            }
+        }
+
+        /* -------------------------------------------------------------
+           7. Input Handling & Real-time Check
+        ------------------------------------------------------------- */
+        function checkInput(input, category, badgeId, iconId) {
+            sound.keyStroke();
+            const val = input.value.trim();
+            const target = state.currentLetter;
+            const badge = document.getElementById(badgeId);
+            const icon = document.getElementById(iconId);
+
+            if (!val) {
+                badge.innerText = 'Empty';
+                badge.className = 'text-[10px] font-bold text-slate-400 uppercase';
+                icon.classList.add('hidden');
+            } else if (val.toUpperCase().startsWith(target)) {
+                badge.innerText = 'Ready';
+                badge.className = 'text-[10px] font-bold text-emerald-600 uppercase';
+                icon.classList.remove('hidden');
+            } else {
+                badge.innerText = `Must start with ${target}`;
+                badge.className = 'text-[10px] font-bold text-amber-600 uppercase';
+                icon.classList.add('hidden');
+            }
+
+            // Check how many are valid
+            let completed = 0;
+            const checks = [
+                { val: inputName.value.trim() },
+                { val: inputPlace.value.trim() },
+                { val: inputAnimal.value.trim() },
+                { val: inputThing.value.trim() }
+            ];
+            checks.forEach(c => {
+                if (c.val && c.val.toUpperCase().startsWith(target)) completed++;
+            });
+
+            document.getElementById('player-progress-indicator').innerText = `${completed} / 4 Completed`;
+
+            // If all 4 are filled and valid, unlock STOP!
+            if (completed === 4) {
+                btnStopRound.disabled = false;
+                btnStopRound.className = "px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-sm flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-red-500/30 cursor-pointer buzzer-active";
+            } else {
+                btnStopRound.disabled = true;
+                btnStopRound.className = "px-5 py-3 rounded-2xl bg-slate-200 text-slate-400 font-black text-sm flex items-center justify-center gap-1.5 transition-all cursor-not-allowed";
+            }
+        }
+
+        inputName.addEventListener('input', () => checkInput(inputName, 'name', 'badge-status-name', 'icon-name'));
+        inputPlace.addEventListener('input', () => checkInput(inputPlace, 'place', 'badge-status-place', 'icon-place'));
+        inputAnimal.addEventListener('input', () => checkInput(inputAnimal, 'animal', 'badge-status-animal', 'icon-animal'));
+        inputThing.addEventListener('input', () => checkInput(inputThing, 'thing', 'badge-status-thing', 'icon-thing'));
+
+        // STOP Button trigger
+        btnStopRound.addEventListener('click', () => {
+            if (btnStopRound.disabled) return;
+            sound.stopBuzzer();
+            triggerStop('me');
+        });
+
+        function triggerStop(callerId) {
+            if (state.urgentMode) return;
+            state.urgentMode = true;
+            urgentBadge.classList.remove('hidden');
+
+            const caller = state.players.find(p => p.id === callerId);
+            urgentBadge.innerText = `🚨 ${caller ? caller.name : 'Someone'} CALLED STOP! 10s LEFT!`;
+
+            // Drop timer to min(state.timer, 10)
+            if (state.timer > 10) {
+                state.timer = 10;
+                updateTimerDisplay();
+            }
+
+            if (state.isMultiplayer && callerId === 'me') {
+                broadcast({ type: 'STOP_CALLED', callerId: state.myId });
+            }
+        }
+
+        /* -------------------------------------------------------------
+           8. Bot AI Simulation
+        ------------------------------------------------------------- */
+        function simulateBotPlay(letter) {
+            const data = DICT[letter];
+            if (!data) return;
+
+            // Bot picks random answers
+            const botName = data.names[Math.floor(Math.random() * data.names.length)];
+            const botPlace = data.places[Math.floor(Math.random() * data.places.length)];
+            const botAnimal = data.animals[Math.floor(Math.random() * data.animals.length)];
+            const botThing = data.things[Math.floor(Math.random() * data.things.length)];
+
+            state.roundAnswers['bot'] = {
+                name: botName,
+                place: botPlace,
+                animal: botAnimal,
+                thing: botThing,
+                submitted: true
+            };
+
+            // Bot finishes between 18 and 30 seconds
+            const finishTime = 18000 + Math.random() * 12000;
+            setTimeout(() => {
+                if (state.timer > 10 && !state.urgentMode && !state.isReviewing) {
+                    triggerStop('bot');
+                }
+            }, finishTime);
+        }
+
+        /* -------------------------------------------------------------
+           9. Finish Round & Scoring Calculation
+        ------------------------------------------------------------- */
+        function finishRound() {
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            inputs.forEach(inp => inp.disabled = true);
+
+            // Record my answers
+            state.roundAnswers['me'] = {
+                name: inputName.value.trim(),
+                place: inputPlace.value.trim(),
+                animal: inputAnimal.value.trim(),
+                thing: inputThing.value.trim(),
+                submitted: true
+            };
+
+            if (state.isMultiplayer) {
+                broadcast({
+                    type: 'SUBMIT_ANSWERS',
+                    playerId: state.myId,
+                    answers: state.roundAnswers['me']
+                });
+            }
+
+            // Show review phase
+            showReviewScreen();
+        }
+
+        function showReviewScreen() {
+            state.isReviewing = true;
+            sectionPlay.classList.add('hidden');
+            sectionReview.classList.remove('hidden');
+            reviewLetter.innerText = state.currentLetter;
+
+            calculateScores();
+            renderReviewTable();
+        }
+
+        function calculateScores() {
+            const letter = state.currentLetter;
+            const categories = ['name', 'place', 'animal', 'thing'];
+
+            state.players.forEach(p => {
+                const ans = state.roundAnswers[p.id] || { name: '', place: '', animal: '', thing: '' };
+                ans.scores = { name: 0, place: 0, animal: 0, thing: 0 };
+                ans.valid = { name: false, place: false, animal: false, thing: false };
+                ans.totalRound = 0;
+
+                categories.forEach(cat => {
+                    const text = (ans[cat] || '').trim();
+                    if (!text || !text.toUpperCase().startsWith(letter)) {
+                        ans.valid[cat] = false;
+                        ans.scores[cat] = 0;
+                    } else {
+                        ans.valid[cat] = true;
+                        // Check uniqueness among all players
+                        let isShared = false;
+                        state.players.forEach(other => {
+                            if (other.id !== p.id) {
+                                const otherAns = state.roundAnswers[other.id];
+                                if (otherAns && (otherAns[cat] || '').trim().toLowerCase() === text.toLowerCase()) {
+                                    isShared = true;
+                                }
+                            }
+                        });
+
+                        ans.scores[cat] = isShared ? 5 : 10;
+                    }
+                    ans.totalRound += ans.scores[cat];
+                });
+
+                // Add to player match score
+                p.score += ans.totalRound;
+            });
+
+            updateLeaderboard();
+        }
+
+        function renderReviewTable() {
+            reviewTableBody.innerHTML = '';
+            const categories = ['name', 'place', 'animal', 'thing'];
+
+            state.players.forEach(p => {
+                const ans = state.roundAnswers[p.id] || {};
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/70 transition-colors";
+
+                let catHtml = '';
+                categories.forEach(cat => {
+                    const word = ans[cat] || '—';
+                    const score = ans.scores ? ans.scores[cat] : 0;
+                    const isValid = ans.valid ? ans.valid[cat] : false;
+                    const badgeColor = score === 10 ? 'bg-emerald-100 text-emerald-800' : (score === 5 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-400');
+
+                    catHtml += `
+                        <td class="py-3 px-3 cursor-pointer select-none" onclick="toggleChallenge('${p.id}', '${cat}')" title="Click to accept/reject word">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-hand text-base font-bold text-slate-800 ${!isValid ? 'line-through text-slate-400' : ''}">${word}</span>
+                                <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full ${badgeColor}">+${score}</span>
+                            </div>
+                        </td>
+                    `;
+                });
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-bold text-slate-800 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full ${p.isLocal ? 'bg-teal-500' : 'bg-slate-400'}"></span>
+                        <span>${p.name}</span>
+                    </td>
+                    ${catHtml}
+                    <td class="py-3 px-3 text-right font-mono font-extrabold text-teal-800 text-base">
+                        +${ans.totalRound || 0}
+                    </td>
+                `;
+                reviewTableBody.appendChild(tr);
+            });
+        }
+
+        window.toggleChallenge = function(playerId, category) {
+            const ans = state.roundAnswers[playerId];
+            if (!ans || !ans.scores) return;
+
+            const player = state.players.find(p => p.id === playerId);
+            if (!player) return;
+
+            sound.tallyDing();
+            if (ans.valid[category]) {
+                // Reject
+                player.score -= ans.scores[category];
+                ans.scores[category] = 0;
+                ans.valid[category] = false;
+            } else {
+                // Accept
+                ans.valid[category] = true;
+                ans.scores[category] = 10;
+                player.score += 10;
+            }
+
+            ans.totalRound = ans.scores.name + ans.scores.place + ans.scores.animal + ans.scores.thing;
+            renderReviewTable();
+            updateLeaderboard();
+        };
+
+        /* -------------------------------------------------------------
+           10. Next Round / Game Over Transition
+        ------------------------------------------------------------- */
+        btnNextRound.addEventListener('click', () => {
+            if (state.roundIndex >= state.maxRounds) {
+                showGameOver();
+            } else {
+                state.roundIndex++;
+                state.isReviewing = false;
+                sectionReview.classList.add('hidden');
+                sectionPlay.classList.remove('hidden');
+                updateLeaderboard();
+
+                if (!state.isMultiplayer || state.isHost) {
+                    spinLetter();
+                } else {
+                    letterDisplay.innerText = '?';
+                    letterStatusText.innerText = 'Waiting for host to spin...';
+                }
+            }
+        });
+
+        function showGameOver() {
+            sound.winFanfare();
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+
+            // Sort players by score
+            const ranked = [...state.players].sort((a, b) => b.score - a.score);
+            const winner = ranked[0];
+
+            document.getElementById('gameover-title').innerText = `${winner.name} Wins! 🏆`;
+            document.getElementById('gameover-desc').innerText = `Finished ${state.maxRounds} rounds with a top score of ${winner.score} points!`;
+
+            const podium = document.getElementById('gameover-podium');
+            podium.innerHTML = '';
+            ranked.forEach((p, idx) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between py-1 border-b border-slate-200/60 last:border-0";
+                item.innerHTML = `
+                    <span class="font-bold text-slate-700">${idx + 1}. ${p.name}</span>
+                    <span class="font-mono font-extrabold text-teal-700">${p.score} pts</span>
+                `;
+                podium.appendChild(item);
+            });
+
+            document.getElementById('modal-gameover').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-gameover-restart').addEventListener('click', () => {
+            document.getElementById('modal-gameover').classList.add('hidden');
+            state.players.forEach(p => p.score = 0);
+            state.roundIndex = 1;
+            updateLeaderboard();
+            resetRoundInputs();
+            letterDisplay.innerText = '?';
+            letterStatusText.innerText = 'Spin to start match!';
+            btnSpinLetter.disabled = false;
+            btnSpinLetter.classList.remove('opacity-50', 'cursor-not-allowed');
+            sectionReview.classList.add('hidden');
+            sectionPlay.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            if (confirm("Restart entire match? All scores will be reset.")) {
+                initSoloGame();
+            }
+        });
+
+        /* -------------------------------------------------------------
+           11. WebRTC Online Multiplayer (PeerJS)
+        ------------------------------------------------------------- */
+        const modalMp = document.getElementById('modal-multiplayer');
+        const btnOpenMp = document.getElementById('btn-open-multiplayer');
+        const btnCloseMp = document.getElementById('btn-close-mp');
+        const tabHost = document.getElementById('tab-host');
+        const tabJoin = document.getElementById('tab-join');
+        const panelHost = document.getElementById('panel-host');
+        const panelJoin = document.getElementById('panel-join');
+        const hostCodeDisplay = document.getElementById('host-code-display');
+        const btnCopyLink = document.getElementById('btn-copy-link');
+        const btnStartHosted = document.getElementById('btn-start-hosted-game');
+        const inputJoinCode = document.getElementById('input-join-code');
+        const btnJoinRoom = document.getElementById('btn-join-room');
+
+        btnOpenMp.addEventListener('click', () => {
+            modalMp.classList.remove('hidden');
+            if (!state.roomCode) createHostRoom();
+        });
+        btnCloseMp.addEventListener('click', () => modalMp.classList.add('hidden'));
+
+        tabHost.addEventListener('click', () => {
+            tabHost.classList.add('bg-white', 'shadow-sm', 'text-teal-800');
+            tabHost.classList.remove('text-slate-500');
+            tabJoin.classList.remove('bg-white', 'shadow-sm', 'text-teal-800');
+            tabJoin.classList.add('text-slate-500');
+            panelHost.classList.remove('hidden');
+            panelJoin.classList.add('hidden');
+        });
+
+        tabJoin.addEventListener('click', () => {
+            tabJoin.classList.add('bg-white', 'shadow-sm', 'text-teal-800');
+            tabJoin.classList.remove('text-slate-500');
+            tabHost.classList.remove('bg-white', 'shadow-sm', 'text-teal-800');
+            tabHost.classList.add('text-slate-500');
+            panelJoin.classList.remove('hidden');
+            panelHost.classList.add('hidden');
+        });
+
+        function createHostRoom() {
+            const rawCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+            state.roomCode = `NPAT-${rawCode}`;
+            state.isHost = true;
+            state.isMultiplayer = true;
+            state.myId = 'host_' + rawCode;
+
+            hostCodeDisplay.innerText = state.roomCode;
+
+            // Generate QR Code
+            const shareUrl = `https://gyan-games.vercel.app/npat.html?room=${state.roomCode}`;
+            const qrElem = document.getElementById('qrcode-container');
+            qrElem.innerHTML = '';
+            new QRCode(qrElem, { text: shareUrl, width: 130, height: 130 });
+
+            // Initialize PeerJS
+            state.peer = new Peer(state.roomCode.toLowerCase().replace('-', ''));
+            state.peer.on('open', id => {
+                updateNetHud(true, 'Host Room: ' + state.roomCode);
+            });
+
+            state.peer.on('connection', conn => {
+                conn.on('open', () => {
+                    const newPlayerId = 'p_' + Math.random().toString(36).substring(2, 6);
+                    state.connections[newPlayerId] = conn;
+                    state.players.push({
+                        id: newPlayerId,
+                        name: `Player ${state.players.length + 1}`,
+                        score: 0,
+                        isLocal: false
+                    });
+                    updateLeaderboard();
+
+                    conn.send({
+                        type: 'INIT_ROOM',
+                        playerId: newPlayerId,
+                        players: state.players,
+                        maxRounds: state.maxRounds
+                    });
+                    broadcast({ type: 'PLAYER_JOINED', players: state.players });
+                });
+
+                conn.on('data', data => handleIncomingData(data));
+            });
+
+            state.players = [{ id: 'me', name: 'Host (You)', score: 0, isLocal: true }];
+            updateLeaderboard();
+        }
+
+        btnJoinRoom.addEventListener('click', () => {
+            const code = inputJoinCode.value.trim().toUpperCase();
+            if (!code || !code.startsWith('NPAT-')) {
+                alert("Please enter a valid room code (e.g., NPAT-ABCD)");
+                return;
+            }
+            joinRemoteRoom(code);
+        });
+
+        function joinRemoteRoom(roomCode) {
+            state.roomCode = roomCode;
+            state.isHost = false;
+            state.isMultiplayer = true;
+            state.peer = new Peer();
+
+            state.peer.on('open', id => {
+                const targetPeerId = roomCode.toLowerCase().replace('-', '');
+                const conn = state.peer.connect(targetPeerId);
+
+                conn.on('open', () => {
+                    state.connections['host'] = conn;
+                    modalMp.classList.add('hidden');
+                    updateNetHud(true, 'Joined ' + roomCode);
+                });
+
+                conn.on('data', data => handleIncomingData(data));
+            });
+        }
+
+        function broadcast(msg) {
+            Object.values(state.connections).forEach(c => {
+                if (c && c.open) c.send(msg);
+            });
+        }
+
+        function handleIncomingData(msg) {
+            switch(msg.type) {
+                case 'INIT_ROOM':
+                    state.myId = msg.playerId;
+                    state.players = msg.players.map(p => ({
+                        ...p,
+                        isLocal: p.id === state.myId,
+                        name: p.id === state.myId ? `${p.name} (You)` : p.name
+                    }));
+                    state.maxRounds = msg.maxRounds;
+                    updateLeaderboard();
+                    break;
+                case 'PLAYER_JOINED':
+                    state.players = msg.players.map(p => ({
+                        ...p,
+                        isLocal: p.id === state.myId
+                    }));
+                    updateLeaderboard();
+                    break;
+                case 'LETTER_CHOSEN':
+                    spinLetter(msg.letter);
+                    break;
+                case 'STOP_CALLED':
+                    triggerStop(msg.callerId);
+                    break;
+                case 'SUBMIT_ANSWERS':
+                    state.roundAnswers[msg.playerId] = { ...msg.answers, submitted: true };
+                    // If all answered
+                    const allDone = state.players.every(p => state.roundAnswers[p.id] && state.roundAnswers[p.id].submitted);
+                    if (allDone) {
+                        showReviewScreen();
+                    }
+                    break;
+            }
+        }
+
+        function updateNetHud(connected, label) {
+            const netDot = document.getElementById('net-dot');
+            const netLabel = document.getElementById('net-label');
+            const hudRoom = document.getElementById('hud-room-code');
+
+            if (connected) {
+                netDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                netLabel.innerText = label;
+                hudRoom.classList.remove('hidden');
+                hudRoom.innerText = state.roomCode;
+            } else {
+                netDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                netLabel.innerText = 'Solo / Bot Mode';
+                hudRoom.classList.add('hidden');
+            }
+        }
+
+        btnCopyLink.addEventListener('click', () => {
+            const shareUrl = `https://gyan-games.vercel.app/npat.html?room=${state.roomCode}`;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                btnCopyLink.innerHTML = `<span class="material-symbols-rounded text-sm">check</span><span>Copied!</span>`;
+                setTimeout(() => {
+                    btnCopyLink.innerHTML = `<span class="material-symbols-rounded text-sm">link</span><span>Copy Invite Link</span>`;
+                }, 2000);
+            });
+        });
+
+        btnStartHosted.addEventListener('click', () => {
+            modalMp.classList.add('hidden');
+            spinLetter();
+        });
+
+        document.getElementById('hud-room-code').addEventListener('click', () => {
+            if (state.roomCode) {
+                const shareUrl = `https://gyan-games.vercel.app/npat.html?room=${state.roomCode}`;
+                navigator.clipboard.writeText(shareUrl);
+                alert("Room link copied to clipboard!");
+            }
+        });
+
+        // Toggle Sound Button
+        const btnToggleSound = document.getElementById('btn-toggle-sound');
+        btnToggleSound.addEventListener('click', () => {
+            sound.muted = !sound.muted;
+            document.getElementById('sound-icon').innerText = sound.muted ? 'volume_off' : 'volume_up';
+        });
+
+        // Auto join from URL query param ?room=NPAT-XXXX
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if (roomParam && roomParam.toUpperCase().startsWith('NPAT-')) {
+                joinRemoteRoom(roomParam.toUpperCase());
+            } else {
+                initSoloGame();
+            }
+        });
+    </script>
+</body>
+</html>

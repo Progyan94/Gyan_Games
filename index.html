@@ -19,10 +19,8 @@
                             onPrimaryContainer: '#21005D',
                             surface: '#FEF7FF',
                             surfaceHighest: '#E6E0E9',
-                            outline: '#79747E',
                             outlineVariant: '#CAC4D0',
-                            secondary: '#625B71',
-                            turf: '#006C4C'
+                            secondary: '#625B71'
                         }
                     }
                 }
@@ -66,50 +64,20 @@
         }
         .game-card-hover:hover {
             transform: translateY(-6px);
-            box-shadow: 0 16px 36px -6px rgba(33, 0, 93, 0.16);
+            box-shadow: 0 18px 40px -6px rgba(33, 0, 93, 0.16);
         }
 
-        /***********************************************************************
-         * CSS HAND PREVIEWS FOR CARDS
-         ***********************************************************************/
-        .css-hand-icon {
-            position: relative;
-            width: 44px;
-            height: 52px;
+        .tab-btn.active {
+            background-color: #6750A4;
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(103, 80, 164, 0.3);
         }
-        .hand-palm-icon {
-            position: absolute;
-            bottom: 0;
-            left: 9px;
-            width: 26px;
-            height: 26px;
-            background: linear-gradient(135deg, #fbd2a4, #e8a872);
-            border-radius: 7px 7px 11px 11px;
-            box-shadow: inset -1px -2px 4px rgba(180, 95, 30, 0.25);
-            z-index: 2;
-        }
-        .hand-finger-icon {
-            position: absolute;
-            background: linear-gradient(to top, #e8a872 0%, #fbd2a4 70%, #fadab3 100%);
-            border-radius: 4px;
-            box-shadow: inset -1px 0 2px rgba(180, 95, 30, 0.2);
-            z-index: 1;
-        }
-        .f-idx { left: 11px; bottom: 22px; width: 6px; height: 22px; }
-        .f-mid { left: 18px; bottom: 22px; width: 6px; height: 26px; }
-        .f-rng { left: 25px; bottom: 22px; width: 6px; height: 23px; }
-        .f-pnk { left: 32px; bottom: 22px; width: 5px; height: 18px; }
-        .f-thb { left: 1px; bottom: 5px; width: 8px; height: 18px; transform: rotate(-35deg); z-index: 3; }
-
-        /* Folded finger */
-        .f-fold { transform: translateY(13px) scaleY(0.42); border-radius: 6px; z-index: 4; background: linear-gradient(to top, #df9b64, #f4c28f); }
-        .thb-fold { transform: rotate(45deg) translate(10px, -3px) scale(0.92); z-index: 5; }
     </style>
 </head>
 <body class="hero-mesh min-h-screen flex flex-col justify-between text-[#1D1B20]">
 
     <!-- Top Navigation -->
-    <header class="w-full px-4 py-3 bg-white/80 backdrop-blur-md border-b border-md-outlineVariant/30 sticky top-0 z-30">
+    <header class="w-full px-4 py-3 bg-white/85 backdrop-blur-md border-b border-md-outlineVariant/30 sticky top-0 z-30">
         <div class="max-w-6xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-md-primary to-[#8A70D6] text-white flex items-center justify-center font-extrabold text-xl shadow-md">
@@ -134,11 +102,11 @@
     </header>
 
     <!-- Hero Section -->
-    <main class="max-w-6xl w-full mx-auto px-4 py-8 sm:py-12 flex-1 flex flex-col justify-center">
+    <main class="max-w-6xl w-full mx-auto px-4 py-8 sm:py-10 flex-1 flex flex-col justify-center">
         
-        <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-12 space-y-3">
+        <div class="text-center max-w-2xl mx-auto mb-8 space-y-3">
             <span class="text-xs font-extrabold uppercase tracking-widest text-md-primary bg-md-primaryContainer px-3 py-1 rounded-full inline-block">
-                ⚡ PURE PEER-TO-PEER MULTIPLAYER
+                ⚡ 9 NOSTALGIC MULTIPLAYER GAMES
             </span>
             <h2 class="text-3xl sm:text-5xl font-extrabold text-[#1D1B20] tracking-tight">
                 Classic Schoolyard Games, Reborn in WebRTC.
@@ -153,7 +121,7 @@
                     <div class="pl-3 text-md-secondary">
                         <span class="material-symbols-rounded text-xl">login</span>
                     </div>
-                    <input type="text" id="quick-room-code" placeholder="Enter Room Code (e.g. PF-8321, HC-9412)" maxlength="12" class="flex-1 bg-transparent text-xs sm:text-sm font-mono font-extrabold uppercase tracking-wider focus:outline-none py-2 px-1 text-[#1D1B20]">
+                    <input type="text" id="quick-room-code" placeholder="Enter Room Code (e.g. PF-8321, HC-9412, CARROM-7721)" maxlength="15" class="flex-1 bg-transparent text-xs sm:text-sm font-mono font-extrabold uppercase tracking-wider focus:outline-none py-2 px-1 text-[#1D1B20]">
                     <button type="submit" class="px-5 py-2.5 rounded-xl bg-md-primary text-white text-xs font-bold hover:bg-[#563E91] transition-all shadow-md flex items-center gap-1">
                         <span>Join</span>
                         <span class="material-symbols-rounded text-sm">arrow_forward</span>
@@ -162,13 +130,28 @@
             </div>
         </div>
 
-        <!-- Games Grid (3 Flagship Games) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto w-full">
+        <!-- Category Tabs -->
+        <div class="flex items-center justify-center flex-wrap gap-2 mb-8">
+            <button class="tab-btn active px-4 py-2 rounded-full text-xs font-extrabold transition-all bg-white text-slate-700 shadow-sm border border-slate-200" data-filter="all">
+                🌟 All Games (9)
+            </button>
+            <button class="tab-btn px-4 py-2 rounded-full text-xs font-extrabold transition-all bg-white text-slate-700 shadow-sm border border-slate-200 hover:bg-slate-50" data-filter="classroom">
+                🎒 Classroom Classics
+            </button>
+            <button class="tab-btn px-4 py-2 rounded-full text-xs font-extrabold transition-all bg-white text-slate-700 shadow-sm border border-slate-200 hover:bg-slate-50" data-filter="physics">
+                🎱 Tabletop & Physics
+            </button>
+            <button class="tab-btn px-4 py-2 rounded-full text-xs font-extrabold transition-all bg-white text-slate-700 shadow-sm border border-slate-200 hover:bg-slate-50" data-filter="strategy">
+                🧩 Brain & Strategy
+            </button>
+        </div>
+
+        <!-- 9 Games Grid -->
+        <div id="games-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7 max-w-6xl mx-auto w-full">
             
-            <!-- GAME 1: PEN FIGHT 3D -->
-            <div class="md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-indigo-100 hover:border-md-primary">
+            <!-- 1. PEN FIGHT 3D -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-indigo-100 hover:border-indigo-500" data-category="classroom physics">
                 <div>
-                    <!-- Header with Icon & Badges -->
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl shadow-md">
                             🖊️
@@ -185,18 +168,9 @@
                     </p>
 
                     <div class="space-y-1.5 mb-6 text-xs text-gray-600">
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>2 to 6 Player Multi-Pen Rumble (FFA)</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>Torque Lever Aiming: Whip Spin vs Heavy Ram</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>Tournament Bracket & Best of 1/3/5/7</span>
-                        </div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>2 to 6 Player Multi-Pen Rumble (FFA)</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Torque Lever Aiming: Whip Spin vs Ram</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Tournament Bracket & Best of 1/3/5</span></div>
                     </div>
                 </div>
 
@@ -206,58 +180,16 @@
                 </a>
             </div>
 
-            <!-- GAME 2: ROCK PAPER SCISSORS -->
-            <div class="md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-amber-100 hover:border-amber-500">
+            <!-- 2. HAND CRICKET -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-emerald-100 hover:border-emerald-600" data-category="classroom">
                 <div>
-                    <!-- Header with Icon & Badges -->
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="w-14 h-14 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-2xl shadow-md">
-                            ✂️
-                        </div>
-                        <div class="flex flex-col items-end gap-1">
-                            <span class="text-[9px] font-extrabold uppercase bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">PURE CSS HANDS</span>
-                            <span class="text-[9px] font-bold bg-purple-50 text-purple-800 px-2 py-0.5 rounded-full">NO COUNTDOWN</span>
-                        </div>
-                    </div>
-
-                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Rock Paper Scissors</h3>
-                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
-                        Duel friends or smart AI with smooth pure CSS hand animations. Simultaneous lock-in delivers instant clash results with zero delay!
-                    </p>
-
-                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>CSS-drawn Rock, Paper, Scissors hands</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>Instant Reveal (no waiting on timer)</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>Best of 1, 3, 5, 7 Series & Knockout Cups</span>
-                        </div>
-                    </div>
-                </div>
-
-                <a href="rps.html" class="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
-                    <span class="material-symbols-rounded text-lg">sports_esports</span>
-                    <span>Play Rock Paper Scissors</span>
-                </a>
-            </div>
-
-            <!-- GAME 3: HAND CRICKET -->
-            <div class="md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-emerald-100 hover:border-emerald-600">
-                <div>
-                    <!-- Header with Icon & Badges -->
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-md">
                             🏏
                         </div>
                         <div class="flex flex-col items-end gap-1">
                             <span class="text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">CRAZY 0-10 & NORMAL</span>
-                            <span class="text-[9px] font-bold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-full">11 CSS GESTURES</span>
+                            <span class="text-[9px] font-bold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-full">11 OUTLINE GESTURES</span>
                         </div>
                     </div>
 
@@ -267,18 +199,9 @@
                     </p>
 
                     <div class="space-y-1.5 mb-6 text-xs text-gray-600">
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>11 Pure CSS Hand Gestures (0 to 10)</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>Crazy Mode: Successor/Predecessor Out + Multiplier</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-emerald-600 font-bold">✓</span>
-                            <span>Coin Toss, 1st & 2nd Innings Target Chasing</span>
-                        </div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>11 Connected Line Art Gestures (0-10)</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Crazy Mode: Successor/Predecessor Out</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Coin Toss, 1st & 2nd Innings Chasing</span></div>
                     </div>
                 </div>
 
@@ -288,42 +211,286 @@
                 </a>
             </div>
 
+            <!-- 3. ROCK PAPER SCISSORS -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-amber-100 hover:border-amber-500" data-category="strategy classroom">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-2xl shadow-md">
+                            ✂️
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">CONNECTED LINE ART</span>
+                            <span class="text-[9px] font-bold bg-purple-50 text-purple-800 px-2 py-0.5 rounded-full">INSTANT REVEAL</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Rock Paper Scissors</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        Duel friends or smart AI with smooth connected black line art hands. Simultaneous lock-in delivers instant clash results with zero delay!
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Connected Outline Hand Animations</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Instant Simultaneous Reveal (No Timer)</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Best of 1, 3, 5, 7 Series & Tournaments</span></div>
+                    </div>
+                </div>
+
+                <a href="rps.html" class="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Rock Paper Scissors</span>
+                </a>
+            </div>
+
+            <!-- 4. BOOK CRICKET 3D -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-orange-100 hover:border-orange-500" data-category="classroom">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-orange-500 text-white flex items-center justify-center text-2xl shadow-md">
+                            📖
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200">3D PAGE FLIP</span>
+                            <span class="text-[9px] font-bold bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full">NOSTALGIA</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Book Cricket 3D</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        Flip pages of a 3D notebook! The last digit decides your fate: 1, 2, 3, 4, 6 runs, 8 boundary, 0 OUT, 7 wide ball, and 9 no-ball free hit!
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>3D Interactive Textbook Page Physics</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Authentic Last-Digit Cricket Scoring</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Wicket Tallies & Target Chasing</span></div>
+                    </div>
+                </div>
+
+                <a href="book-cricket.html" class="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Book Cricket 3D</span>
+                </a>
+            </div>
+
+            <!-- 5. CHAIN REACTION -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-emerald-100 hover:border-emerald-500" data-category="strategy">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-emerald-700 text-white flex items-center justify-center text-2xl shadow-md">
+                            ⚛️
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">EXPLOSIVE ORBS</span>
+                            <span class="text-[9px] font-bold bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full">2-8 PLAYERS</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Chain Reaction</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        Place radioactive orbs in a 6x9 grid. Reach critical mass (corners 2, edges 3, inner 4) to trigger mind-bending cascading chain explosions!
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Critical Mass Splitting & Cascades</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>2 to 8 Player Color Customization</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Orb Ownership Overthrow Mechanics</span></div>
+                    </div>
+                </div>
+
+                <a href="chain-reaction.html" class="w-full py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Chain Reaction</span>
+                </a>
+            </div>
+
+            <!-- 6. DOTS AND BOXES -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-blue-100 hover:border-blue-500" data-category="classroom strategy">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-md">
+                            ✏️
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">GRID PAPER</span>
+                            <span class="text-[9px] font-bold bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full">STREAK CHAIN</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Dots and Boxes</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        The ultimate notebook margin pencil game! Claim horizontal & vertical line segments, complete 4-sided boxes for initials and bonus turns.
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>4x4, 5x5, and 6x6 Grid Sizes</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Bonus Streak on Box Claim</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Greedy Chain AI Bot & WebRTC</span></div>
+                    </div>
+                </div>
+
+                <a href="dots-and-boxes.html" class="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Dots & Boxes</span>
+                </a>
+            </div>
+
+            <!-- 7. ULTIMATE TIC-TAC-TOE -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-violet-100 hover:border-violet-500" data-category="strategy">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-violet-600 text-white flex items-center justify-center text-2xl shadow-md">
+                            🧠
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full border border-violet-200">81 CELLS</span>
+                            <span class="text-[9px] font-bold bg-pink-50 text-pink-800 px-2 py-0.5 rounded-full">TACTICAL ROUTING</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Ultimate Tic-Tac-Toe</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        A game of 9 nested boards! Each move you make forces your opponent into the corresponding sub-board. Capture 3 in a row on the master board!
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Quadrant-to-Quadrant Routing Rules</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Master Grid Conquer Detection</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Tactical Minimax AI Bot</span></div>
+                    </div>
+                </div>
+
+                <a href="ultimate-ttt.html" class="w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Ultimate Tic-Tac-Toe</span>
+                </a>
+            </div>
+
+            <!-- 8. NAME, PLACE, ANIMAL, THING -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-teal-100 hover:border-teal-500" data-category="classroom">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-teal-600 text-white flex items-center justify-center text-2xl shadow-md">
+                            🎯
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full border border-teal-200">LETTER SPINNER</span>
+                            <span class="text-[9px] font-bold bg-red-50 text-red-800 px-2 py-0.5 rounded-full">STOP BUZZER</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Name, Place, Animal, Thing</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        Spin the alphabet, write answers fast on ruled paper! Call STOP to start a 10s countdown. Unique answers earn 10 pts, shared answers 5 pts!
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Mechanical Alphabet Spinner Wheel</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Peer Review & Challenge Scoring Table</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Smart Bot Dictionary & 2-6 Player WebRTC</span></div>
+                    </div>
+                </div>
+
+                <a href="npat.html" class="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Name, Place, Animal, Thing</span>
+                </a>
+            </div>
+
+            <!-- 9. CARROM BOARD 2D -->
+            <div class="game-item md3-card-elevated rounded-3xl p-6 flex flex-col justify-between game-card-hover border-2 border-amber-900/30 hover:border-amber-700" data-category="physics">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-800 text-white flex items-center justify-center text-2xl shadow-md">
+                            🔴
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-extrabold uppercase bg-amber-50 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">WOODEN BOARD</span>
+                            <span class="text-[9px] font-bold bg-red-50 text-red-800 px-2 py-0.5 rounded-full">QUEEN COVER</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-extrabold text-[#1D1B20] mb-1.5">Carrom Board 2D</h3>
+                    <p class="text-xs text-md-secondary leading-relaxed mb-4">
+                        Realistic wooden carrom board simulation! Position your striker on the baseline, aim with power, pocket white & black men, and cover the Queen!
+                    </p>
+
+                    <div class="space-y-1.5 mb-6 text-xs text-gray-600">
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Rigid-Body Wood Physics & Corner Pockets</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Queen Cover & Striker Foul Penalty Rules</span></div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-600 font-bold">✓</span><span>Power Aiming Guide & Solo Bot / WebRTC</span></div>
+                    </div>
+                </div>
+
+                <a href="carrom.html" class="w-full py-3 rounded-2xl bg-amber-800 hover:bg-amber-900 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+                    <span class="material-symbols-rounded text-lg">sports_esports</span>
+                    <span>Play Carrom Board 2D</span>
+                </a>
+            </div>
+
         </div>
 
     </main>
 
     <!-- Footer -->
-    <footer class="w-full py-6 text-center text-xs text-md-secondary border-t border-md-outlineVariant/30 bg-white/60">
-        <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span class="font-bold">Gyan Games Studio • Built with WebRTC, Three.js & Modern CSS</span>
-            <div class="flex gap-4 font-semibold text-gray-600">
-                <a href="pen-fight.html" class="hover:text-md-primary">Pen Fight 3D</a>
-                <span>•</span>
-                <a href="rps.html" class="hover:text-amber-600">Rock Paper Scissors</a>
-                <span>•</span>
-                <a href="hand-cricket.html" class="hover:text-emerald-700">Hand Cricket</a>
+    <footer class="w-full py-6 text-center text-xs text-md-secondary border-t border-md-outlineVariant/30 bg-white/70">
+        <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span class="font-bold">Gyan Games Studio &bull; 9 Nostalgic WebRTC P2P Multiplayer Games</span>
+            <div class="flex flex-wrap justify-center gap-3 font-semibold text-gray-600 text-[11px]">
+                <a href="pen-fight.html" class="hover:text-indigo-600">Pen Fight</a>
+                <span>&bull;</span>
+                <a href="hand-cricket.html" class="hover:text-emerald-600">Hand Cricket</a>
+                <span>&bull;</span>
+                <a href="rps.html" class="hover:text-amber-600">RPS</a>
+                <span>&bull;</span>
+                <a href="book-cricket.html" class="hover:text-orange-600">Book Cricket</a>
+                <span>&bull;</span>
+                <a href="chain-reaction.html" class="hover:text-emerald-700">Chain Reaction</a>
+                <span>&bull;</span>
+                <a href="dots-and-boxes.html" class="hover:text-blue-600">Dots & Boxes</a>
+                <span>&bull;</span>
+                <a href="ultimate-ttt.html" class="hover:text-violet-600">Ultimate TTT</a>
+                <span>&bull;</span>
+                <a href="npat.html" class="hover:text-teal-600">NPAT</a>
+                <span>&bull;</span>
+                <a href="carrom.html" class="hover:text-amber-800">Carrom</a>
             </div>
         </div>
     </footer>
 
     <!-- Smart Auto-Routing Script -->
     <script>
+        // Prefix-to-Game File Mapping
+        const PREFIX_MAP = {
+            'PF': 'pen-fight.html',
+            'HC': 'hand-cricket.html',
+            'RPS': 'rps.html',
+            'BC': 'book-cricket.html',
+            'CR': 'chain-reaction.html',
+            'DB': 'dots-and-boxes.html',
+            'UTTT': 'ultimate-ttt.html',
+            'NPAT': 'npat.html',
+            'CARROM': 'carrom.html'
+        };
+
+        function routeRoomCode(code) {
+            const upper = code.trim().toUpperCase();
+            for (const [prefix, file] of Object.entries(PREFIX_MAP)) {
+                if (upper.startsWith(prefix + '-') || upper.startsWith(prefix)) {
+                    window.location.href = `${file}?room=${encodeURIComponent(upper)}`;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // Automatic query param routing: If someone visits gyan-games.vercel.app/?room=PF-XXXX
-        // we forward them directly to the appropriate game file!
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const room = urlParams.get('room');
             if (room) {
-                const upper = room.toUpperCase();
-                if (upper.startsWith('PF-') || upper.startsWith('PF')) {
-                    window.location.replace(`pen-fight.html?room=${encodeURIComponent(upper)}`);
-                } else if (upper.startsWith('RPS-') || upper.startsWith('RPS')) {
-                    window.location.replace(`rps.html?room=${encodeURIComponent(upper)}`);
-                } else if (upper.startsWith('HC-') || upper.startsWith('HC')) {
-                    window.location.replace(`hand-cricket.html?room=${encodeURIComponent(upper)}`);
-                } else {
-                    // Default fallback to pen fight if unknown prefix
-                    window.location.replace(`pen-fight.html?room=${encodeURIComponent(upper)}`);
+                if (!routeRoomCode(room)) {
+                    window.location.replace(`pen-fight.html?room=${encodeURIComponent(room.toUpperCase())}`);
                 }
             }
         })();
@@ -336,23 +503,57 @@
                 alert('Please enter a room code!');
                 return;
             }
-            if (input.startsWith('PF-') || input.startsWith('PF')) {
-                window.location.href = `pen-fight.html?room=${encodeURIComponent(input)}`;
-            } else if (input.startsWith('RPS-') || input.startsWith('RPS')) {
-                window.location.href = `rps.html?room=${encodeURIComponent(input)}`;
-            } else if (input.startsWith('HC-') || input.startsWith('HC')) {
-                window.location.href = `hand-cricket.html?room=${encodeURIComponent(input)}`;
-            } else {
-                // If user just typed 4 letters without prefix, prompt game selection
-                const choice = prompt(`Which game is this room code for?\n1. Pen Fight 3D\n2. Rock Paper Scissors\n3. Hand Cricket\n(Enter 1, 2, or 3):`, "1");
-                if (choice === "2") {
-                    window.location.href = `rps.html?room=${encodeURIComponent(input)}`;
-                } else if (choice === "3") {
-                    window.location.href = `hand-cricket.html?room=${encodeURIComponent(input)}`;
-                } else {
-                    window.location.href = `pen-fight.html?room=${encodeURIComponent(input)}`;
-                }
+            if (!routeRoomCode(input)) {
+                // If user entered a code without prefix, ask which game
+                const choice = prompt(
+                    `Which game is room code "${input}" for?\n` +
+                    `1. Pen Fight 3D (PF-)\n` +
+                    `2. Hand Cricket (HC-)\n` +
+                    `3. Rock Paper Scissors (RPS-)\n` +
+                    `4. Book Cricket 3D (BC-)\n` +
+                    `5. Chain Reaction (CR-)\n` +
+                    `6. Dots and Boxes (DB-)\n` +
+                    `7. Ultimate Tic-Tac-Toe (UTTT-)\n` +
+                    `8. Name, Place, Animal, Thing (NPAT-)\n` +
+                    `9. Carrom Board 2D (CARROM-)\n` +
+                    `(Enter number 1-9):`,
+                    "1"
+                );
+                const choiceMap = {
+                    "1": "pen-fight.html",
+                    "2": "hand-cricket.html",
+                    "3": "rps.html",
+                    "4": "book-cricket.html",
+                    "5": "chain-reaction.html",
+                    "6": "dots-and-boxes.html",
+                    "7": "ultimate-ttt.html",
+                    "8": "npat.html",
+                    "9": "carrom.html"
+                };
+                const target = choiceMap[choice] || "pen-fight.html";
+                window.location.href = `${target}?room=${encodeURIComponent(input)}`;
             }
+        });
+
+        // Category Tab Filter
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const gameItems = document.querySelectorAll('.game-item');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filter = btn.getAttribute('data-filter');
+                gameItems.forEach(item => {
+                    const categories = item.getAttribute('data-category') || '';
+                    if (filter === 'all' || categories.includes(filter)) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            });
         });
     </script>
 </body>
