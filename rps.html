@@ -39,6 +39,8 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- WebRTC Direct P2P Voice Chat Engine -->
+    <script src="voice-chat.js"></script>
 
     <style>
         body {
@@ -550,6 +552,16 @@
                     document.getElementById('host-setup').classList.add('hidden');
                     document.getElementById('host-active').classList.remove('hidden');
                     updateHeaderNetUI(true, this.roomCode);
+
+                    // Attach WebRTC Voice Chat Engine
+                    if (window.GyanVoice) {
+                        window.GyanVoice.attachPeer(this.peer, {
+                            isHost: true,
+                            roomCode: this.roomCode,
+                            localName: gameState.p1Name,
+                            onSpeakingChange: (peerId, isSpeaking) => updateVoiceSpeakingEffects(peerId, isSpeaking)
+                        });
+                    }
                 });
 
                 this.peer.on('connection', (c) => {
@@ -576,6 +588,17 @@
                     const c = this.peer.connect(targetId, { reliable: true });
                     this.conn = c;
                     this.setupConnection();
+
+                    // Attach WebRTC Voice Chat Engine
+                    if (window.GyanVoice) {
+                        window.GyanVoice.attachPeer(this.peer, {
+                            isHost: false,
+                            roomCode: this.roomCode,
+                            localName: gameState.p2Name,
+                            onSpeakingChange: (peerId, isSpeaking) => updateVoiceSpeakingEffects(peerId, isSpeaking)
+                        });
+                        setTimeout(() => window.GyanVoice.callPeer(targetId, 'Host'), 800);
+                    }
                 });
             }
 
@@ -590,6 +613,9 @@
                             hostName: gameState.p1Name,
                             bestOf: gameState.bestOf
                         });
+                        if (window.GyanVoice && this.conn.peer) {
+                            setTimeout(() => window.GyanVoice.callPeer(this.conn.peer, gameState.p2Name || 'Challenger'), 800);
+                        }
                     } else {
                         this.conn.send({
                             type: 'join_info',
@@ -683,10 +709,39 @@
          * 4. GAMEPLAY ENGINE & SIMULTANEOUS RESOLUTION
          ***********************************************************************/
         function updateNamesDisplay() {
-            document.getElementById('p1-name').textContent = gameState.p1Name;
-            document.getElementById('p2-name').textContent = gameState.p2Name;
+            const isOnline = net && net.isConnected;
+            const isLocalHost = !isOnline || net.isHost;
+
+            const p1Tag = `<span class="text-[9px] font-bold bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded-full border border-amber-500 shadow-sm ml-1">👑 HOST</span>${isLocalHost ? ' <span class="text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-300 px-1 rounded ml-0.5">YOU</span>' : ''}`;
+            const p2Tag = isOnline 
+                ? `<span class="text-[9px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-1.5 py-0.5 rounded-full ml-1">GUEST</span>${!isLocalHost ? ' <span class="text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-300 px-1 rounded ml-0.5">YOU</span>' : ''}`
+                : `<span class="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full ml-1">BOT</span>`;
+
+            document.getElementById('p1-name').innerHTML = `${gameState.p1Name} ${p1Tag}`;
+            document.getElementById('p2-name').innerHTML = `${gameState.p2Name} ${p2Tag}`;
+            document.getElementById('p1-avatar').textContent = isLocalHost ? 'YOU' : 'HOST';
+            document.getElementById('p2-avatar').textContent = !isLocalHost ? 'YOU' : (isOnline ? 'P2' : 'BOT');
+
             document.getElementById('badge-series').textContent = `Best of ${gameState.bestOf} ▾`;
             document.getElementById('target-pill').textContent = `First to ${Math.floor(gameState.bestOf / 2) + 1} Wins`;
+        }
+
+        function updateVoiceSpeakingEffects(peerId, isSpeaking) {
+            const isLocalHost = !net || !net.isConnected || net.isHost;
+            const isP1Speaking = (isLocalHost && peerId === 'local') || (!isLocalHost && peerId !== 'local');
+            const isP2Speaking = (!isLocalHost && peerId === 'local') || (isLocalHost && peerId !== 'local');
+
+            const p1Av = document.getElementById('p1-avatar');
+            const p2Av = document.getElementById('p2-avatar');
+
+            if (p1Av) {
+                if (isP1Speaking && isSpeaking) p1Av.classList.add('ring-4', 'ring-emerald-400', 'animate-pulse');
+                else if (isP1Speaking) p1Av.classList.remove('ring-4', 'ring-emerald-400', 'animate-pulse');
+            }
+            if (p2Av) {
+                if (isP2Speaking && isSpeaking) p2Av.classList.add('ring-4', 'ring-emerald-400', 'animate-pulse');
+                else if (isP2Speaking) p2Av.classList.remove('ring-4', 'ring-emerald-400', 'animate-pulse');
+            }
         }
 
         function renderStarTrackers() {
@@ -896,10 +951,34 @@
         /***********************************************************************
          * 5. TOURNAMENT BRACKET SYSTEM (4-Player & 8-Player)
          ***********************************************************************/
+        function getPlayerBadgeHtml(name) {
+            if (!name || name === 'TBD') return '';
+            const isOnline = net && net.isConnected;
+            const isLocalHost = !isOnline || net.isHost;
+            const isHost = isOnline && (name === gameState.p1Name);
+            const isMe = isOnline 
+                ? (isLocalHost ? name === gameState.p1Name : name === gameState.p2Name)
+                : (name === gameState.p1Name);
+            const isBot = name.toLowerCase().includes('bot');
+
+            let badges = '';
+            if (isHost) {
+                badges += `<span class="px-1 py-0.2 rounded text-[8px] font-black bg-amber-400 text-amber-950 shadow-sm mr-1">👑 HOST</span>`;
+            }
+            if (isMe) {
+                badges += `<span class="px-1 py-0.2 rounded text-[8px] font-black bg-blue-100 text-blue-900 border border-blue-300 mr-1">YOU</span>`;
+            } else if (isBot) {
+                badges += `<span class="px-1 py-0.2 rounded text-[8px] font-black bg-slate-200 text-slate-700 mr-1">🤖 BOT</span>`;
+            }
+            return badges;
+        }
+
         function initTournament() {
+            const p1 = gameState.p1Name || 'Host Player';
+            const p2 = (gameState.mode === 'online' && gameState.p2Name) ? gameState.p2Name : 'Cyber Bot';
             gameState.tournament.matches = [
-                { id: 0, round: 1, p1: gameState.p1Name, p2: 'Bot Alpha', winner: null, status: 'READY' },
-                { id: 1, round: 1, p1: 'Cyber Bot', p2: 'Bot Delta', winner: null, status: 'PENDING' },
+                { id: 0, round: 1, p1: p1, p2: 'Bot Alpha', winner: null, status: 'READY' },
+                { id: 1, round: 1, p1: p2, p2: 'Bot Delta', winner: null, status: 'PENDING' },
                 { id: 2, round: 2, p1: 'TBD', p2: 'TBD', winner: null, status: 'WAITING' }
             ];
             gameState.tournament.currentMatch = 0;
@@ -923,13 +1002,13 @@
                         <span>${m.status}</span>
                     </div>
                     <div class="space-y-1">
-                        <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
-                            <span>${m.p1}</span>
-                            ${m.winner === m.p1 ? '<span class="text-emerald-600">✓</span>' : ''}
+                        <div class="p-1 rounded bg-gray-50 flex items-center justify-between font-bold">
+                            <span class="flex items-center truncate">${getPlayerBadgeHtml(m.p1)}<span class="truncate">${m.p1}</span></span>
+                            ${m.winner === m.p1 ? '<span class="text-emerald-600 ml-1">✓</span>' : ''}
                         </div>
-                        <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
-                            <span>${m.p2}</span>
-                            ${m.winner === m.p2 ? '<span class="text-emerald-600">✓</span>' : ''}
+                        <div class="p-1 rounded bg-gray-50 flex items-center justify-between font-bold">
+                            <span class="flex items-center truncate">${getPlayerBadgeHtml(m.p2)}<span class="truncate">${m.p2}</span></span>
+                            ${m.winner === m.p2 ? '<span class="text-emerald-600 ml-1">✓</span>' : ''}
                         </div>
                     </div>
                 `;
@@ -949,13 +1028,13 @@
                     <span>${finalMatch.status}</span>
                 </div>
                 <div class="space-y-1">
-                    <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
-                        <span>${finalMatch.p1}</span>
-                        ${finalMatch.winner === finalMatch.p1 ? '<span class="text-emerald-600">✓</span>' : ''}
+                    <div class="p-1 rounded bg-gray-50 flex items-center justify-between font-bold">
+                        <span class="flex items-center truncate">${getPlayerBadgeHtml(finalMatch.p1)}<span class="truncate">${finalMatch.p1}</span></span>
+                        ${finalMatch.winner === finalMatch.p1 ? '<span class="text-emerald-600 ml-1">✓</span>' : ''}
                     </div>
-                    <div class="p-1 rounded bg-gray-50 flex justify-between font-bold">
-                        <span>${finalMatch.p2}</span>
-                        ${finalMatch.winner === finalMatch.p2 ? '<span class="text-emerald-600">✓</span>' : ''}
+                    <div class="p-1 rounded bg-gray-50 flex items-center justify-between font-bold">
+                        <span class="flex items-center truncate">${getPlayerBadgeHtml(finalMatch.p2)}<span class="truncate">${finalMatch.p2}</span></span>
+                        ${finalMatch.winner === finalMatch.p2 ? '<span class="text-emerald-600 ml-1">✓</span>' : ''}
                     </div>
                 </div>
             `;
@@ -1020,6 +1099,7 @@
         document.getElementById('btn-create-room').addEventListener('click', () => {
             sfx.playSelect();
             const name = document.getElementById('host-name').value.trim() || 'Host Player';
+            localStorage.setItem('gyan_player_name', name);
             const bestOf = parseInt(document.getElementById('host-bestof').value);
             net.initHost(name, bestOf);
         });
@@ -1032,6 +1112,7 @@
                 alert('Please enter a room code!');
                 return;
             }
+            localStorage.setItem('gyan_player_name', name);
             document.getElementById('join-status').classList.remove('hidden');
             net.initClient(code, name);
         });
@@ -1064,6 +1145,16 @@
             renderStarTrackers();
             document.getElementById('p1-hand').innerHTML = getRPSHandSVG('rock');
             document.getElementById('p2-hand').innerHTML = getRPSHandSVG('rock');
+
+            const savedName = localStorage.getItem('gyan_player_name');
+            if (savedName) {
+                const hostNameInput = document.getElementById('host-name');
+                const joinNameInput = document.getElementById('join-name');
+                if (hostNameInput) hostNameInput.value = savedName;
+                if (joinNameInput) joinNameInput.value = savedName;
+                gameState.p1Name = savedName;
+                updateNamesDisplay();
+            }
 
             const urlParams = new URLSearchParams(window.location.search);
             const roomParam = urlParams.get('room');

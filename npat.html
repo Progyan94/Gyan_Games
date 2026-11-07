@@ -34,6 +34,8 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- WebRTC Direct P2P Voice Chat Engine -->
+    <script src="voice-chat.js"></script>
 
     <style>
         body {
@@ -1074,6 +1076,13 @@
             state.peer = new Peer(state.roomCode.toLowerCase().replace('-', ''));
             state.peer.on('open', id => {
                 updateNetHud(true, 'Host Room: ' + state.roomCode);
+                if (window.GyanVoice) {
+                    window.GyanVoice.attachPeer(state.peer, {
+                        isHost: true,
+                        roomCode: state.roomCode,
+                        localName: 'Host'
+                    });
+                }
             });
 
             state.peer.on('connection', conn => {
@@ -1095,6 +1104,10 @@
                         maxRounds: state.maxRounds
                     });
                     broadcast({ type: 'PLAYER_JOINED', players: state.players });
+
+                    if (window.GyanVoice && conn.peer) {
+                        setTimeout(() => window.GyanVoice.callPeer(conn.peer, `Player ${state.players.length}`), 800);
+                    }
                 });
 
                 conn.on('data', data => handleIncomingData(data));
@@ -1122,6 +1135,15 @@
             state.peer.on('open', id => {
                 const targetPeerId = roomCode.toLowerCase().replace('-', '');
                 const conn = state.peer.connect(targetPeerId);
+
+                if (window.GyanVoice) {
+                    window.GyanVoice.attachPeer(state.peer, {
+                        isHost: false,
+                        roomCode: state.roomCode,
+                        localName: 'Player'
+                    });
+                    setTimeout(() => window.GyanVoice.callPeer(targetPeerId, 'Host'), 800);
+                }
 
                 conn.on('open', () => {
                     state.connections['host'] = conn;

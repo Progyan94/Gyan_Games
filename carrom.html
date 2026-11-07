@@ -36,6 +36,8 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- WebRTC Direct P2P Voice Chat Engine -->
+    <script src="voice-chat.js"></script>
 
     <style>
         body {
@@ -1254,13 +1256,25 @@
             new QRCode(qrElem, { text: shareUrl, width: 130, height: 130 });
 
             STATE.peer = new Peer(STATE.roomCode.toLowerCase().replace('-', ''));
-            STATE.peer.on('open', () => updateNetHud(true, 'Host: ' + STATE.roomCode));
+            STATE.peer.on('open', () => {
+                updateNetHud(true, 'Host: ' + STATE.roomCode);
+                if (window.GyanVoice) {
+                    window.GyanVoice.attachPeer(STATE.peer, {
+                        isHost: true,
+                        roomCode: STATE.roomCode,
+                        localName: 'Host (White)'
+                    });
+                }
+            });
 
             STATE.peer.on('connection', conn => {
                 STATE.conn = conn;
-                document.getElementById('p2-name').innerText = 'Guest (Black)';
+                document.getElementById('p2-name').innerHTML = `Guest (Black) <span class="text-[9px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-1.5 py-0.5 rounded-full ml-1">GUEST</span>`;
                 conn.on('open', () => {
                     conn.send({ type: 'INIT_SYNC', state: getSyncState() });
+                    if (window.GyanVoice && conn.peer) {
+                        setTimeout(() => window.GyanVoice.callPeer(conn.peer, 'Guest'), 800);
+                    }
                 });
                 conn.on('data', data => handleIncomingData(data));
             });
@@ -1280,13 +1294,24 @@
             STATE.isHost = false;
             STATE.isMultiplayer = true;
             STATE.myTurnRole = 'B'; // Guest is Black
-            document.getElementById('p1-name').innerText = 'Host (White)';
-            document.getElementById('p2-name').innerText = 'You (Black)';
+            document.getElementById('p1-name').innerHTML = `Host (White) <span class="text-[9px] font-bold bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded-full border border-amber-500 shadow-sm ml-1">👑 HOST</span>`;
+            document.getElementById('p2-name').innerHTML = `You (Black) <span class="text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-300 px-1 rounded ml-1">YOU</span>`;
 
             STATE.peer = new Peer();
             STATE.peer.on('open', () => {
-                const conn = STATE.peer.connect(roomCode.toLowerCase().replace('-', ''));
+                const targetId = roomCode.toLowerCase().replace('-', '');
+                const conn = STATE.peer.connect(targetId);
                 STATE.conn = conn;
+
+                if (window.GyanVoice) {
+                    window.GyanVoice.attachPeer(STATE.peer, {
+                        isHost: false,
+                        roomCode: STATE.roomCode,
+                        localName: 'Guest (Black)'
+                    });
+                    setTimeout(() => window.GyanVoice.callPeer(targetId, 'Host'), 800);
+                }
+
                 conn.on('open', () => {
                     modalMp.classList.add('hidden');
                     updateNetHud(true, 'Joined ' + roomCode);

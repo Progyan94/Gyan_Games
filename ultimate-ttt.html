@@ -38,6 +38,8 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- WebRTC Direct P2P Voice Chat Engine -->
+    <script src="voice-chat.js"></script>
 
     <style>
         body {
@@ -282,6 +284,14 @@
                     document.getElementById('host-setup').classList.add('hidden');
                     document.getElementById('host-active').classList.remove('hidden');
                     updateHeaderNetUI(true, this.roomCode);
+
+                    if (window.GyanVoice) {
+                        window.GyanVoice.attachPeer(this.peer, {
+                            isHost: true,
+                            roomCode: this.roomCode,
+                            localName: p1Name
+                        });
+                    }
                 });
                 this.peer.on('connection', (c) => {
                     this.conn = c;
@@ -303,6 +313,15 @@
                     const c = this.peer.connect(targetId, { reliable: true });
                     this.conn = c;
                     this.setupConnection();
+
+                    if (window.GyanVoice) {
+                        window.GyanVoice.attachPeer(this.peer, {
+                            isHost: false,
+                            roomCode: this.roomCode,
+                            localName: p2Name
+                        });
+                        setTimeout(() => window.GyanVoice.callPeer(targetId, 'Host'), 800);
+                    }
                 });
             }
             setupConnection() {
@@ -311,6 +330,9 @@
                     updateHeaderNetUI(this.isHost, this.roomCode);
                     if (this.isHost) {
                         this.conn.send({ type: 'welcome', hostName: p1Name });
+                        if (window.GyanVoice && this.conn.peer) {
+                            setTimeout(() => window.GyanVoice.callPeer(this.conn.peer, p2Name || 'Guest'), 800);
+                        }
                     } else {
                         this.conn.send({ type: 'join_info', clientName: p2Name });
                         document.getElementById('multiplayer-modal').classList.add('hidden');

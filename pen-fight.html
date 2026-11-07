@@ -20,6 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Canvas Confetti for Tournament Champion Celebrations -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <!-- WebRTC Direct P2P Voice Chat Engine -->
+    <script src="voice-chat.js"></script>
 
     <script>
         tailwind.config = {
@@ -1055,6 +1057,16 @@
                     updateNetworkHUD(true, this.roomCode);
                     renderRoomQRCode(this.roomCode);
                     broadcastLobbyState();
+
+                    // Attach WebRTC Voice Chat
+                    if (window.GyanVoice) {
+                        window.GyanVoice.attachPeer(this.peer, {
+                            isHost: true,
+                            roomCode: this.roomCode,
+                            localName: gameState.players[0].name,
+                            onSpeakingChange: handleVoiceSpeakingChange
+                        });
+                    }
                 });
 
                 this.peer.on('connection', (conn) => {
@@ -1099,6 +1111,11 @@
                         broadcastLobbyState();
                         renderLobbyPlayerCards();
                         updateMultiPenHUD();
+                        updateAllNametags();
+
+                        if (window.GyanVoice) {
+                            setTimeout(() => window.GyanVoice.callPeer(conn.peer, openSlot.name), 600);
+                        }
                     } else {
                         conn.send({
                             type: 'room_full',
@@ -1123,6 +1140,7 @@
                         broadcastLobbyState();
                         renderLobbyPlayerCards();
                         updateMultiPenHUD();
+                        updateAllNametags();
                     }
                 });
             }
@@ -1149,6 +1167,16 @@
                     const conn = this.peer.connect(targetHostId, { reliable: true });
                     this.hostConn = conn;
 
+                    // Attach WebRTC Voice Chat Engine
+                    if (window.GyanVoice) {
+                        window.GyanVoice.attachPeer(this.peer, {
+                            isHost: false,
+                            roomCode: this.roomCode,
+                            localName: playerName,
+                            onSpeakingChange: handleVoiceSpeakingChange
+                        });
+                    }
+
                     conn.on('open', () => {
                         this.isConnected = true;
                         updateNetworkHUD(false, this.roomCode);
@@ -1160,6 +1188,10 @@
                             type: 'client_join_req',
                             name: playerName
                         });
+
+                        if (window.GyanVoice) {
+                            setTimeout(() => window.GyanVoice.callPeer(targetHostId, 'Host'), 800);
+                        }
 
                         setTimeout(() => {
                             document.getElementById('multiplayer-modal').classList.add('hidden');
@@ -1203,6 +1235,7 @@
                             broadcastLobbyState();
                             renderLobbyPlayerCards();
                             updateMultiPenHUD();
+                            updateAllNametags();
                         }
                         break;
                     }
@@ -1258,6 +1291,7 @@
                         spawnPens();
                         renderLobbyPlayerCards();
                         updateMultiPenHUD();
+                        updateAllNametags();
                         break;
                     }
                     case 'lobby_state': {
@@ -1267,6 +1301,23 @@
                         gameState.penCount = data.penCount;
                         renderLobbyPlayerCards();
                         updateMultiPenHUD();
+                        updateAllNametags();
+                        break;
+                    }
+                    case 'tournament_match_start': {
+                        gameState.matchMode = 'tournament';
+                        gameState.tournament.currentMatchId = data.currentMatchId;
+                        gameState.players = data.players;
+                        gameState.penCount = 2;
+                        document.getElementById('tournament-modal').classList.add('hidden');
+                        document.getElementById('tournament-modal').classList.remove('flex');
+                        document.getElementById('multiplayer-modal').classList.add('hidden');
+                        document.getElementById('multiplayer-modal').classList.remove('flex');
+                        spawnPens();
+                        resetRound(true);
+                        updateAllNametags();
+                        showImpactTelemetryToast('TOURNAMENT DUEL!', 25, `${gameState.players[0].name} vs ${gameState.players[1].name}`, 0);
+                        sfx.playFanfare();
                         break;
                     }
                     case 'game_start': {
@@ -1793,6 +1844,107 @@
                     shape: new CANNON.Box(new CANNON.Vec3(this.spec.length / 2, this.spec.radius, this.spec.radius))
                 });
                 world.addBody(this.fallBody);
+
+                // 3D Floating Nametag Sprite Billboard
+                this.nametagCanvas = document.createElement('canvas');
+                this.nametagCanvas.width = 512;
+                this.nametagCanvas.height = 128;
+                this.nametagCtx = this.nametagCanvas.getContext('2d');
+                this.nametagTexture = new THREE.CanvasTexture(this.nametagCanvas);
+                this.nametagTexture.minFilter = THREE.LinearFilter;
+                const spriteMat = new THREE.SpriteMaterial({
+                    map: this.nametagTexture,
+                    transparent: true,
+                    depthWrite: false
+                });
+                this.nametagSprite = new THREE.Sprite(spriteMat);
+                this.nametagSprite.scale.set(1.9, 0.48, 1);
+                this.nametagSprite.position.set(0, 0.85, 0);
+                scene.add(this.nametagSprite);
+
+                this.isSpeaking = false;
+                this.renderNametag();
+            }
+
+            renderNametag(isSpeaking = false) {
+                this.isSpeaking = isSpeaking;
+                const ctx = this.nametagCtx;
+                if (!ctx) return;
+                const p = (gameState.players && gameState.players[this.playerIndex]) ? gameState.players[this.playerIndex] : { name: `Player ${this.playerIndex + 1}`, color: this.customColor || '#3B82F6', id: this.playerIndex };
+                const isHost = this.playerIndex === 0;
+                const isMe = this.playerIndex === gameState.localPlayerId;
+                const isAI = !!p.isAI;
+
+                ctx.clearRect(0, 0, 512, 128);
+                ctx.save();
+                const radius = 28;
+                const x = 16, y = 16, w = 480, h = 96;
+
+                // Glowing border if speaking or turn active
+                if (isSpeaking) {
+                    ctx.shadowColor = '#10B981';
+                    ctx.shadowBlur = 20;
+                    ctx.strokeStyle = '#10B981';
+                    ctx.lineWidth = 6;
+                } else {
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeStyle = p.color || '#6366F1';
+                    ctx.lineWidth = 3.5;
+                }
+
+                // Fill card background
+                ctx.fillStyle = isSpeaking ? 'rgba(6, 78, 59, 0.94)' : 'rgba(15, 23, 42, 0.88)';
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(x, y, w, h, radius);
+                } else {
+                    ctx.rect(x, y, w, h);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                // Player Color indicator dot
+                ctx.fillStyle = p.color || '#3B82F6';
+                ctx.beginPath();
+                ctx.arc(x + 36, y + h / 2, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Player Name
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 34px "Plus Jakarta Sans", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                const displayName = p.name || `Player ${this.playerIndex + 1}`;
+                ctx.fillText(displayName, x + 62, y + h / 2);
+
+                // Badges on the right side: 👑 HOST / (YOU) / 🤖 BOT / 🎙️ SPEAKING
+                let badgeX = x + w - 24;
+                ctx.textAlign = 'right';
+
+                if (isSpeaking) {
+                    ctx.font = 'bold 26px sans-serif';
+                    ctx.fillStyle = '#34D399';
+                    ctx.fillText('🎙️', badgeX, y + h / 2);
+                    badgeX -= 38;
+                }
+
+                if (isHost) {
+                    ctx.font = 'bold 22px sans-serif';
+                    ctx.fillStyle = '#FBBF24';
+                    ctx.fillText('👑 HOST', badgeX, y + h / 2);
+                } else if (isMe) {
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillStyle = '#60A5FA';
+                    ctx.fillText('YOU', badgeX, y + h / 2);
+                } else if (isAI) {
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillStyle = '#94A3B8';
+                    ctx.fillText('🤖 BOT', badgeX, y + h / 2);
+                }
+
+                ctx.restore();
+                this.nametagTexture.needsUpdate = true;
             }
 
             setSpawnPosition(x, z, yaw) {
@@ -1912,6 +2064,7 @@
                     this.mesh.position.copy(this.fallBody.position);
                     this.mesh.quaternion.copy(this.fallBody.quaternion);
                     this.playerRing.visible = false;
+                    if (this.nametagSprite) this.nametagSprite.visible = false;
                     return;
                 }
 
@@ -1923,6 +2076,18 @@
 
                 this.playerRing.visible = !this.isEliminated;
                 this.playerRing.material.opacity = isActiveTurn ? (0.65 + Math.sin(elapsed * 6) * 0.25) : 0.28;
+
+                // Sync 3D Floating Nametag position
+                if (this.nametagSprite) {
+                    if (this.isEliminated || this.y < -0.3) {
+                        this.nametagSprite.visible = false;
+                    } else {
+                        this.nametagSprite.visible = true;
+                        // Float slightly above pen and gently bob when it is this player's active turn
+                        const bob = isActiveTurn ? Math.sin(elapsed * 3.5) * 0.04 : 0;
+                        this.nametagSprite.position.set(this.x, this.y + 0.85 + bob, this.z);
+                    }
+                }
 
                 if (isActiveTurn && gameState.phase === 'AIMING' && this.getSpeed() < 0.05) {
                     const style = this.spec.idleStyle;
@@ -1956,6 +2121,11 @@
             destroy() {
                 scene.remove(this.mesh);
                 world.removeBody(this.fallBody);
+                if (this.nametagSprite) {
+                    scene.remove(this.nametagSprite);
+                    if (this.nametagSprite.material) this.nametagSprite.material.dispose();
+                    if (this.nametagTexture) this.nametagTexture.dispose();
+                }
             }
         }
 
@@ -2221,6 +2391,36 @@
             });
 
             updateMultiPenHUD();
+            updateAllNametags();
+        }
+
+        function updateAllNametags() {
+            pens.forEach((p, idx) => {
+                if (p && p.renderNametag) {
+                    p.renderNametag();
+                }
+            });
+        }
+
+        function handleVoiceSpeakingChange(peerId, isSpeaking) {
+            pens.forEach((fighter, idx) => {
+                const player = gameState.players[idx];
+                if (!player) return;
+                const matches = (peerId === 'local' && idx === gameState.localPlayerId) ||
+                                (player.peerId && player.peerId === peerId) ||
+                                (net.isHost && player.id === 0 && peerId === 'local');
+                if (matches && fighter.renderNametag) {
+                    fighter.renderNametag(isSpeaking);
+                    const pill = document.getElementById(`player-pill-${idx}`);
+                    if (pill) {
+                        if (isSpeaking) {
+                            pill.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-50');
+                        } else {
+                            pill.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-50');
+                        }
+                    }
+                }
+            });
         }
 
         /***********************************************************************
@@ -2833,11 +3033,27 @@
             gameState.tournament.matches = [];
             const count = playerList.length;
 
-            if (count <= 4) {
-                // 4-Player Cup: Semifinals -> Finals
+            if (count <= 2) {
+                // 2-Player Match (Host and Friend seeded into opposite Semifinals to clash in Final)
+                const p1 = playerList[0] || { name: 'Host Player', id: 0, isAI: false, penId: 'parker', color: PLAYER_COLORS[0].hex };
+                const p2 = playerList[1] || { name: 'Challenger', id: 1, isAI: false, penId: 'vrt', color: PLAYER_COLORS[1].hex };
+                const bot1 = { name: 'Cyber Alpha', id: 2, isAI: true, penId: 'reynolds', color: PLAYER_COLORS[2].hex };
+                const bot2 = { name: 'Mecha Beta', id: 3, isAI: true, penId: 'hauser', color: PLAYER_COLORS[3].hex };
+
                 gameState.tournament.matches = [
-                    { id: 0, round: 1, p1: playerList[0], p2: playerList[3], winner: null, status: 'READY' },
-                    { id: 1, round: 1, p1: playerList[1], p2: playerList[2], winner: null, status: 'PENDING' },
+                    { id: 0, round: 1, p1: p1, p2: bot1, winner: null, status: 'READY' },
+                    { id: 1, round: 1, p1: p2, p2: bot2, winner: null, status: 'PENDING' },
+                    { id: 2, round: 2, p1: null, p2: null, winner: null, status: 'WAITING' }
+                ];
+            } else if (count <= 4) {
+                // 4-Player Cup: Semifinals -> Finals
+                const p0 = playerList[0] || { name: 'Player 1', id: 0, color: PLAYER_COLORS[0].hex };
+                const p1 = playerList[1] || { name: 'Player 2', id: 1, color: PLAYER_COLORS[1].hex };
+                const p2 = playerList[2] || { name: 'Bot 3', id: 2, isAI: true, color: PLAYER_COLORS[2].hex };
+                const p3 = playerList[3] || { name: 'Bot 4', id: 3, isAI: true, color: PLAYER_COLORS[3].hex };
+                gameState.tournament.matches = [
+                    { id: 0, round: 1, p1: p0, p2: p3, winner: null, status: 'READY' },
+                    { id: 1, round: 1, p1: p1, p2: p2, winner: null, status: 'PENDING' },
                     { id: 2, round: 2, p1: null, p2: null, winner: null, status: 'WAITING' }
                 ];
             } else {
@@ -2877,6 +3093,14 @@
                 roundNames[3] = 'Grand Final';
             }
 
+            const getNametagBadge = (pObj) => {
+                if (!pObj) return '';
+                if (pObj.id === 0) return '<span class="text-[9px] font-bold bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded-full ml-1 border border-amber-500 shadow-sm">👑 HOST</span>';
+                if (pObj.id === gameState.localPlayerId) return '<span class="text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-300 px-1 rounded ml-1">YOU</span>';
+                if (pObj.isAI) return '<span class="text-[9px] font-bold bg-slate-200 text-slate-700 px-1 rounded ml-1">BOT</span>';
+                return '';
+            };
+
             Object.keys(rounds).forEach(roundNum => {
                 const col = document.createElement('div');
                 col.className = 'flex-1 flex flex-col justify-around gap-4 min-w-[200px]';
@@ -2905,11 +3129,11 @@
                         </div>
                         <div class="space-y-1">
                             <div class="flex items-center justify-between p-1.5 rounded-lg ${p1Win ? 'bg-emerald-50 font-extrabold text-emerald-900' : 'bg-gray-50'}">
-                                <span class="text-xs truncate">${p1Name}</span>
+                                <span class="text-xs truncate flex items-center">${p1Name}${getNametagBadge(m.p1)}</span>
                                 ${p1Win ? '<span class="text-xs text-emerald-600">✓</span>' : ''}
                             </div>
                             <div class="flex items-center justify-between p-1.5 rounded-lg ${p2Win ? 'bg-emerald-50 font-extrabold text-emerald-900' : 'bg-gray-50'}">
-                                <span class="text-xs truncate">${p2Name}</span>
+                                <span class="text-xs truncate flex items-center">${p2Name}${getNametagBadge(m.p2)}</span>
                                 ${p2Win ? '<span class="text-xs text-emerald-600">✓</span>' : ''}
                             </div>
                         </div>
@@ -2986,6 +3210,14 @@
             gameState.penCount = 2;
             spawnPens();
             resetRound(true);
+
+            if (net.isHost && net.isConnected) {
+                net.sendToAll({
+                    type: 'tournament_match_start',
+                    currentMatchId: gameState.tournament.currentMatchId,
+                    players: gameState.players
+                });
+            }
 
             showImpactTelemetryToast('TOURNAMENT DUEL!', 25, `${current.p1.name} vs ${current.p2.name}`, 0);
             sfx.playFanfare();
@@ -3066,8 +3298,9 @@
                     <div class="text-left leading-tight">
                         <div class="flex items-center gap-1">
                             <span class="font-extrabold text-[#1D1B20] text-[11px]">${p.name}</span>
-                            ${isHost ? '<span class="text-[10px]" title="Host">👑</span>' : ''}
-                            ${isMe ? '<span class="text-[9px] font-bold bg-amber-200 text-amber-900 px-1 rounded">YOU</span>' : ''}
+                            ${isHost ? '<span class="text-[9px] font-bold bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded-full border border-amber-500 shadow-sm" title="Host Player">👑 HOST</span>' : ''}
+                            ${isMe ? '<span class="text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-300 px-1 rounded">YOU</span>' : ''}
+                            ${p.isAI ? '<span class="text-[9px] font-bold bg-slate-200 text-slate-700 px-1 rounded">BOT</span>' : ''}
                             ${isEliminated ? '<span class="text-[9px] font-bold bg-rose-200 text-rose-800 px-1 rounded">OUT</span>' : ''}
                             <span class="text-[9px] font-mono bg-slate-200 text-slate-800 px-1 rounded">${spec.mass.toFixed(1)}g</span>
                             <span class="text-[10px] font-mono font-bold bg-md-primary text-white px-1.5 rounded">${p.score}</span>
@@ -3137,7 +3370,12 @@
                             ${idx + 1}
                         </div>
                         <div>
-                            <span class="font-extrabold text-xs text-[#1D1B20] block">${p.name} ${p.id === gameState.localPlayerId ? '(You)' : ''}</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-extrabold text-xs text-[#1D1B20] block">${p.name}</span>
+                                ${p.id === 0 ? '<span class="text-[9px] font-bold bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded-full border border-amber-500 shadow-sm">👑 HOST</span>' : ''}
+                                ${p.id === gameState.localPlayerId ? '<span class="text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-300 px-1 rounded">YOU</span>' : ''}
+                                ${p.isAI ? '<span class="text-[9px] font-bold bg-slate-200 text-slate-700 px-1 rounded">BOT</span>' : ''}
+                            </div>
                             <span class="text-[10px] text-md-secondary">${PEN_ROSTER[p.penId].name}</span>
                         </div>
                     </div>
@@ -3248,8 +3486,12 @@
         function initializeRoster(count = 4) {
             gameState.players = [];
             const penArchetypeKeys = Object.keys(PEN_ROSTER);
+            const savedName = localStorage.getItem('gyan_player_name');
             const hostInput = document.getElementById('host-player-name');
-            const hostName = (hostInput && hostInput.value.trim()) ? hostInput.value.trim() : 'Host (You)';
+            if (savedName && hostInput && (!hostInput.value || hostInput.value === 'Host Player')) {
+                hostInput.value = savedName;
+            }
+            const hostName = (hostInput && hostInput.value.trim()) ? hostInput.value.trim() : (savedName || 'Host Player');
 
             for (let i = 0; i < count; i++) {
                 const isLocalMe = i === 0;
@@ -3271,6 +3513,7 @@
             renderLoadoutSlotPills();
             renderRosterCards();
             updateMultiPenHUD();
+            updateAllNametags();
         }
 
         /***********************************************************************
@@ -3306,6 +3549,7 @@
         document.getElementById('btn-create-room').addEventListener('click', () => {
             sfx.playUI(640, 0.07);
             const name = document.getElementById('host-player-name').value.trim() || 'Host Player';
+            localStorage.setItem('gyan_player_name', name);
             gameState.matchMode = document.getElementById('host-match-mode').value;
             gameState.penCount = parseInt(document.getElementById('host-pen-count').value);
             gameState.bestOf = parseInt(document.getElementById('host-series-format').value);
@@ -3322,6 +3566,7 @@
             document.getElementById('host-room-active').classList.remove('hidden');
             renderLobbyPlayerCards();
             updateMultiPenHUD();
+            updateAllNametags();
         });
 
         document.getElementById('btn-copy-code').addEventListener('click', () => {
@@ -3353,6 +3598,7 @@
         document.getElementById('btn-submit-join').addEventListener('click', () => {
             sfx.playUI(640, 0.06);
             const name = document.getElementById('join-player-name').value.trim() || 'Challenger';
+            localStorage.setItem('gyan_player_name', name);
             const code = document.getElementById('input-room-code').value.trim().toUpperCase();
             if (!code) {
                 alert('Please enter a room code!');
@@ -3657,6 +3903,14 @@
 
         // Auto-Check URL Parameters for Instant Joining via Link
         window.onload = function () {
+            const savedName = localStorage.getItem('gyan_player_name');
+            if (savedName) {
+                const hostInp = document.getElementById('host-player-name');
+                const joinInp = document.getElementById('join-player-name');
+                if (hostInp) hostInp.value = savedName;
+                if (joinInp) joinInp.value = savedName;
+            }
+
             initializeRoster(4);
             animate(performance.now());
 

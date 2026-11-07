@@ -106,17 +106,26 @@
         
         <div class="text-center max-w-2xl mx-auto mb-8 space-y-3">
             <span class="text-xs font-extrabold uppercase tracking-widest text-md-primary bg-md-primaryContainer px-3 py-1 rounded-full inline-block">
-                ⚡ 9 NOSTALGIC MULTIPLAYER GAMES
+                ⚡ 9 MULTIPLAYER GAMES • 🎙️ WEBRTC VOICE CHAT
             </span>
             <h2 class="text-3xl sm:text-5xl font-extrabold text-[#1D1B20] tracking-tight">
                 Classic Schoolyard Games, Reborn in WebRTC.
             </h2>
             <p class="text-sm sm:text-base text-md-secondary leading-relaxed">
-                Connect instantly with friends across phones and laptops using 4-character room codes. Zero installations, zero lag, 100% pure browser gaming.
+                Connect instantly with friends across phones and laptops using 4-character room codes. Zero installations, zero lag, 100% pure browser gaming with integrated P2P Voice Chat and custom nametags.
             </p>
 
-            <!-- Universal Room Code Quick Join Input -->
-            <div class="pt-3 max-w-md mx-auto">
+            <!-- Universal Room Code Quick Join & Nametag -->
+            <div class="pt-3 max-w-lg mx-auto space-y-2">
+                <div class="flex items-center gap-2 px-3.5 py-2 bg-white/80 backdrop-blur rounded-2xl border border-md-primaryContainer/70 text-xs shadow-sm">
+                    <span class="font-extrabold text-md-primary flex items-center gap-1">
+                        <span class="material-symbols-rounded text-base">badge</span>
+                        Your Player Nametag:
+                    </span>
+                    <input type="text" id="global-player-name" placeholder="Enter your player name..." maxlength="20" class="flex-1 bg-transparent font-bold text-[#1D1B20] focus:outline-none px-1">
+                    <span class="text-[10px] text-gray-400 font-bold">Auto-synced</span>
+                </div>
+
                 <form id="quick-join-form" class="flex items-center gap-2 p-1.5 bg-white rounded-2xl shadow-lg border border-md-primaryContainer">
                     <div class="pl-3 text-md-secondary">
                         <span class="material-symbols-rounded text-xl">login</span>
@@ -494,6 +503,17 @@
                 }
             }
         })();
+
+        // Sync Global Player Name
+        const globalNameInput = document.getElementById('global-player-name');
+        if (globalNameInput) {
+            const savedName = localStorage.getItem('gyan_player_name');
+            if (savedName) globalNameInput.value = savedName;
+            globalNameInput.addEventListener('input', () => {
+                const val = globalNameInput.value.trim();
+                if (val) localStorage.setItem('gyan_player_name', val);
+            });
+        }
 
         // Handle Quick Join Form submission
         document.getElementById('quick-join-form').addEventListener('submit', (e) => {
